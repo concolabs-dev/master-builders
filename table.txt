@@ -1,0 +1,37 @@
+  235 {materials.map((material) => (
+                      <TableRow key={material.Number}>
+                        <TableCell>{material.Name}</TableCell>
+                        <TableCell>{material.Type}</TableCell>
+                        <TableCell>
+                          {material.Category.Category}
+                          {material.Category.Subcategory && ` / ${material.Category.Subcategory}`}
+                          {material.Category["Sub subcategory"] && ` / ${material.Category["Sub subcategory"]}`}
+                        </TableCell>
+                        <TableCell>{material.Unit}</TableCell>
+                        <TableCell>
+                          {material.Prices[material.Prices.length - 1][1]
+                            ? `Rs. ${material.Prices[material.Prices.length - 1][1]}`
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button variant="ghost" size="icon" onClick={() => setSelectedMaterial(material)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => handleDeleteMaterial(material.Number)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+203
+                       {categories.map((category) => (
+                                <SelectItem key={category.name} value={category.name}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
