@@ -11,6 +11,65 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+func searchMaterials(c *gin.Context) {
+    query := c.Query("q")
+    subcategory := c.Query("subcategory")
+    
+    if query == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
+        return
+    }
+
+    var filter bson.M
+    
+    if subcategory != "" {
+        filter = bson.M{
+            "$and": []bson.M{
+                {"Category.Subcategory": subcategory},
+                {"$or": []bson.M{
+                    {"Name": bson.M{"$regex": query, "$options": "i"}},
+                    {"Category.SubSubcategory": bson.M{"$regex": query, "$options": "i"}},
+                }},
+            },
+        }
+    } else {
+        filter = bson.M{
+            "$or": []bson.M{
+                {"Name": bson.M{"$regex": query, "$options": "i"}},
+                {"Category.Category": bson.M{"$regex": query, "$options": "i"}},
+                {"Category.Subcategory": bson.M{"$regex": query, "$options": "i"}},
+                {"Category.SubSubcategory": bson.M{"$regex": query, "$options": "i"}},
+            },
+        }
+    }
+
+    var materials []Material
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    cursor, err := collection.Find(ctx, filter)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+        return
+    }
+    defer cursor.Close(ctx)
+
+    for cursor.Next(ctx) {
+        var material Material
+        if err := cursor.Decode(&material); err != nil {
+            continue // Skip problematic entries
+        }
+        materials = append(materials, material)
+    }
+
+    if len(materials) == 0 {
+        c.JSON(http.StatusNotFound, gin.H{"error": "No materials found"})
+        return
+    }
+
+    c.JSON(http.StatusOK, materials)
+}
+
 
 // Get all materials
 func getMaterials(c *gin.Context) {
@@ -140,31 +199,38 @@ func createMaterial(c *gin.Context) {
 }
 
 // Update an existing material
+// Update an existing material by its "Number" field
 func updateMaterial(c *gin.Context) {
-	id, err := primitive.ObjectIDFromHex(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
-		return
-	}
+    numberParam := c.Param("number")
+    if numberParam == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid material Number"})
+        return
+    }
 
-	var updateData Material
-	if err := c.ShouldBindJSON(&updateData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-		return
-	}
+    var updateData map[string]interface{}
+    if err := c.ShouldBindJSON(&updateData); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+        return
+    }
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	update := bson.M{"$set": updateData}
+    if len(updateData) == 0 {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+        return
+    }
 
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": id}, update)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update material"})
-		return
-	}
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
 
-	c.JSON(http.StatusOK, gin.H{"message": "Material updated successfully"})
+    update := bson.M{"$set": updateData}
+    _, err := collection.UpdateOne(ctx, bson.M{"Number": numberParam}, update)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update material"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Material updated successfully"})
 }
+
 
 // Delete a material
 func deleteMaterial(c *gin.Context) {

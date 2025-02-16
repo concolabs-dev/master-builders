@@ -1,0 +1,444 @@
+[{
+  "_id": {
+    "$oid": "67ac223b71c78c732adde3eb"
+  },
+  "name": "Material ",
+  "categories": [
+    {
+      "name": "RAW MATERIAL ",
+      "subcategories": []
+    },
+    {
+      "name": "CONCTRETE",
+      "subcategories": []
+    },
+    {
+      "name": "BRICK & BLOCK",
+      "subcategories": []
+    },
+    {
+      "name": "TIMBER & FORMWORK",
+      "subcategories": [
+        {
+          "name": "FORMWORK",
+          "sub_subcategories": []
+        },
+        {
+          "name": "TIMBER ",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "STRUCTURAL STEEL",
+      "subcategories": [
+        {
+          "name": "REINFORCEMET",
+          "sub_subcategories": []
+        },
+        {
+          "name": "ANGLE IRON",
+          "sub_subcategories": []
+        },
+        {
+          "name": "GI BOX BAR",
+          "sub_subcategories": []
+        },
+        {
+          "name": "GI PIPE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "C-PURLINS HI TENSILE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "OTHER ",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "HARDWARE ITEMS",
+      "subcategories": []
+    },
+    {
+      "name": "INSULATION & FOIL",
+      "subcategories": []
+    },
+    {
+      "name": "PARTITION & PANNELS ",
+      "subcategories": [
+        {
+          "name": "GYPSUM BOARD",
+          "sub_subcategories": []
+        },
+        {
+          "name": "CEMENT BOARD",
+          "sub_subcategories": []
+        },
+        {
+          "name": "PARTITION BOARDS",
+          "sub_subcategories": []
+        },
+        {
+          "name": "STRIP PANEL",
+          "sub_subcategories": []
+        },
+        {
+          "name": "FLOOR BOARD",
+          "sub_subcategories": []
+        },
+        {
+          "name": "SKIRTING",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "PAINT & EQUIPMENTS",
+      "subcategories": [
+        {
+          "name": "PAINT",
+          "sub_subcategories": []
+        },
+        {
+          "name": "ADHESIVE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "EQUIPMENTS",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "TILING ",
+      "subcategories": [
+        {
+          "name": "TILES",
+          "sub_subcategories": [
+            {
+              "name": "LOCAL"
+            },
+            {
+              "name": "IMPORTED"
+            }
+          ]
+        },
+        {
+          "name": "GRANITE & MARBLE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "ACCESSORIES",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "MANHOLE & GULLY COVER",
+      "subcategories": [
+        {
+          "name": "CAST IRON COVER",
+          "sub_subcategories": []
+        },
+        {
+          "name": "FIBER GLASS",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "ROOF & CEILLING ",
+      "subcategories": [
+        {
+          "name": "ROOFING SHEETS",
+          "sub_subcategories": []
+        },
+        {
+          "name": "ROOFING ACCESSORIES",
+          "sub_subcategories": []
+        },
+        {
+          "name": "CEILLING",
+          "sub_subcategories": []
+        },
+        {
+          "name": "CEILLING ACCESSORIES",
+          "sub_subcategories": []
+        }
+      ]
+    }
+  ]
+},
+{
+  "_id": {
+    "$oid": "67ac223b71c78c732adde3ec"
+  },
+  "name": "Electrical ",
+  "categories": [
+    {
+      "name": "WIRES",
+      "subcategories": []
+    },
+    {
+      "name": "DB/ BAKERS",
+      "subcategories": []
+    },
+    {
+      "name": "SWITCH / SOKETS",
+      "subcategories": []
+    },
+    {
+      "name": "LIGHT FITTINGS & BULBS",
+      "subcategories": []
+    },
+    {
+      "name": "FANS",
+      "subcategories": []
+    },
+    {
+      "name": "CONDUITS/ CASINGS",
+      "subcategories": []
+    },
+    {
+      "name": "EARTH ELECTRODES",
+      "subcategories": []
+    },
+    {
+      "name": "ACCESSORIES",
+      "subcategories": []
+    }
+  ]
+},
+{
+  "_id": {
+    "$oid": "67ac223b71c78c732adde3ed"
+  },
+  "name": "Plumbing ",
+  "categories": [
+    {
+      "name": "uPVC PRESSURE PIPES",
+      "subcategories": []
+    },
+    {
+      "name": "uPVC WATER PIPES FITTINGS ",
+      "subcategories": []
+    },
+    {
+      "name": "uPVC WATER PIPES REDUCING FITTINGS ",
+      "subcategories": [
+        {
+          "name": "REDUCING SOCKET",
+          "sub_subcategories": []
+        },
+        {
+          "name": "REDUCING TEE",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "RAIN WATER MANAGEMENT ",
+      "subcategories": []
+    },
+    {
+      "name": "DRAINAGE FITTINGS",
+      "subcategories": [
+        {
+          "name": "BEND 45",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 46",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 47",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 48",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 49",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 89",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 90",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 91",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 92",
+          "sub_subcategories": []
+        },
+        {
+          "name": "BEND 93",
+          "sub_subcategories": []
+        },
+        {
+          "name": "EQUAL TEE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "SWEPT TEE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "SINGLE Y",
+          "sub_subcategories": []
+        },
+        {
+          "name": "VENT COWL",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 45",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 46",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 47",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 48",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 49",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 89",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 90",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 91",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 92",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR BEND 93",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR TEE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "SWEPT DOOR TEE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "SINGLE DOOR Y",
+          "sub_subcategories": []
+        },
+        {
+          "name": "END CLOSURE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOUBLE Y 45",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOUBLE Y 46",
+          "sub_subcategories": []
+        },
+        {
+          "name": "REDUCING Y ",
+          "sub_subcategories": []
+        },
+        {
+          "name": "INSEPECTION SOCKET WCE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR Q TRAP WCE",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR TRAP SINGLE SOCKET",
+          "sub_subcategories": []
+        },
+        {
+          "name": "MULTI FLOOR TRAP BASE 4 WAY",
+          "sub_subcategories": []
+        },
+        {
+          "name": "MULTI FLOOR TRAP BASE 2 WAY",
+          "sub_subcategories": []
+        },
+        {
+          "name": "MULTI FLOOR TRAP BASE 2 WAY WITH TOP TILE",
+          "sub_subcategories": []
+        },
+        {
+          "name": " TOP TILE SET",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR DOUBLE Y 45",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR DOUBLE Y 46",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR REDUCING Y 45",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR REDUCING Y 46",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR S TRAP",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR P TRAP",
+          "sub_subcategories": []
+        },
+        {
+          "name": "DOOR TRAP DOUBLE SOCKET",
+          "sub_subcategories": []
+        },
+        {
+          "name": "MULTI FLOOR TRAP 4 WAY WITH TOP TILE",
+          "sub_subcategories": []
+        }
+      ]
+    },
+    {
+      "name": "SOLVENT CEMENT",
+      "subcategories": []
+    },
+    {
+      "name": "uPVC CABLE TRUNKING 3.00m",
+      "subcategories": []
+    }
+  ]
+}]

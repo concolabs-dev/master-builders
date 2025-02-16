@@ -52,13 +52,14 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	router.GET("/search", searchMaterials)
 	router.GET("/materials", getMaterials)
 	router.GET("/materials/:id", getMaterialByID)
 	router.GET("/materials/filter", getMaterialsByCategory)
 	
 
 	router.POST("/materials", createMaterial)
-	router.PUT("/materials/:id", updateMaterial)
+	router.PUT("/materials/:number", updateMaterial)
 	router.DELETE("/materials/:id", deleteMaterial)
 	// Routes for handling types
 	router.GET("/types", GetTypes)
