@@ -90,7 +90,7 @@ func getMaterials(c *gin.Context) {
 		if err := cursor.Decode(&material); err != nil {
 			// c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding"})
 			er += 1
-			break
+			continue
 
 			return
 		}
@@ -107,6 +107,7 @@ func getMaterials(c *gin.Context) {
 		materials = append(materials, material)
 	}
 	fmt.Println(er)
+
 	c.JSON(http.StatusOK, materials)
 }
 
