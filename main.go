@@ -2,31 +2,42 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"time"
-	"encoding/json"
-	
+
 	"net/http"
-	"github.com/gin-contrib/cors" 
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
 var (
- collection *mongo.Collection
-typeCollection *mongo.Collection
- exchangeRateCollection *mongo.Collection
- supplierCollection *mongo.Collection
- itemCollection *mongo.Collection
- paymentRecordCollection *mongo.Collection
+	collection              *mongo.Collection
+	typeCollection          *mongo.Collection
+	exchangeRateCollection  *mongo.Collection
+	supplierCollection      *mongo.Collection
+	itemCollection          *mongo.Collection
+	paymentRecordCollection *mongo.Collection
 )
+
 func main() {
 	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+	}
+
+	// Read DEBUG environment variable
+	debugMode := os.Getenv("DEBUG") == "true"
+	if debugMode {
+		log.Println("INFO: Running in DEBUG mode. Authentication and Backend API checks will be disabled.")
+	} else {
+		log.Println("INFO: Running in PRODUCTION mode. Authentication and Backend API checks are ENABLED.")
 	}
 
 	// Connect to MongoDB
@@ -58,9 +69,11 @@ func main() {
 	// Set up the Gin router
 
 	router := gin.Default()
-	
-	router.Use(apiSecretMiddleware())
-	
+
+	if !debugMode {
+		router.Use(apiSecretMiddleware())
+	}
+
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // Change to your frontend URL
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
@@ -73,7 +86,6 @@ func main() {
 	router.GET("/materials", getMaterials)
 	router.GET("/materials/:id", getMaterialByID)
 	router.GET("/materials/filter", getMaterialsByCategory)
-	
 
 	router.POST("/materials", createMaterial)
 	router.PUT("/materials/:number", updateMaterial)
@@ -94,7 +106,6 @@ func main() {
 	router.GET("/suppliers/email/:email", getSupplierByEmail)
 	router.PUT("/suppliers/:id", updateSupplier)
 	router.DELETE("/suppliers/:id", deleteSupplier)
-		
 
 	//items routes
 	router.GET("/items", getItems)
@@ -143,10 +154,10 @@ func startExchangeRateUpdater() {
 }
 
 type ExchangeRateResponse struct {
-	Result           string `json:"result"`
-	TimeLastUpdateUnix int64  `json:"time_last_update_unix"`
-	BaseCode         string `json:"base_code"`
-	ConversionRates map[string]float64 `json:"conversion_rates"`
+	Result             string             `json:"result"`
+	TimeLastUpdateUnix int64              `json:"time_last_update_unix"`
+	BaseCode           string             `json:"base_code"`
+	ConversionRates    map[string]float64 `json:"conversion_rates"`
 }
 
 func updateExchangeRates() {
@@ -170,10 +181,10 @@ func updateExchangeRates() {
 
 	// Insert the data into MongoDB
 	_, err = exchangeRateCollection.InsertOne(ctx, map[string]interface{}{
-		"timestamp":              time.Now(),
-		"time_last_update_unix":  result.TimeLastUpdateUnix,
-		"base_code":              result.BaseCode,
-		"conversion_rates":       result.ConversionRates,
+		"timestamp":             time.Now(),
+		"time_last_update_unix": result.TimeLastUpdateUnix,
+		"base_code":             result.BaseCode,
+		"conversion_rates":      result.ConversionRates,
 	})
 	if err != nil {
 		log.Println("Error inserting exchange rates into MongoDB:", err)
