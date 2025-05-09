@@ -124,8 +124,7 @@ func main() {
 	// router.GET("/items/material/:materialId", getItemsByMaterialID)
 
 	// Start the server
-	// port := os.Getenv("PORT")
-	port := "8030"
+	port := os.Getenv("PORT")
 	println("Server running on port " + port)
 	router.Run(":" + port)
 }

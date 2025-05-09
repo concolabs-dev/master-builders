@@ -1,0 +1,31 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: buildmarket_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db # Persists MongoDB data
+      - ./db:/dump_data
+      - ./init-mongo/script.sh:/docker-entrypoint-initdb.d/init-mongo.sh # Mounts the init script
+    environment:
+      MONGO_INITDB_DATABASE: materials_db # Ensures this database is targeted by init scripts
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: buildmarket_app
+    ports:
+      - "${APP_PORT_HOST:-8030}:8030"
+    env_file:
+      - .env
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
