@@ -14,6 +14,8 @@ import (
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"material-api/handlers"
 )
 
 var (
@@ -122,6 +124,16 @@ func main() {
 	router.DELETE("/paymentRecords/:id", deletePaymentRecord)
 
 	// router.GET("/items/material/:materialId", getItemsByMaterialID)
+	handlers.InitProfessionalCollections(client.Database(dbName))
+
+	router.POST("/professionals", handlers.CreateProfessional)
+	router.GET("/professionals", handlers.GetProfessionals)
+	router.GET("/professionals/:id", handlers.GetProfessionalByID)
+	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
+	router.GET("/professionals/email/:email", handlers.GetProfessionalByEmail)
+	router.PUT("/professionals/:id", handlers.UpdateProfessional)
+	router.DELETE("/professionals/:id", handlers.DeleteProfessional)
+	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
 
 	// Start the server
 	port := os.Getenv("PORT")
