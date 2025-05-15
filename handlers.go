@@ -2,80 +2,82 @@ package main
 
 import (
 	"context"
-	"net/http"
-	"time"
 	"fmt"
 	"log"
-	
+	"net/http"
+	"time"
+
 	// "math"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"material-api/model"
 )
+
 func searchMaterials(c *gin.Context) {
-    query := c.Query("q")
-    subcategory := c.Query("subcategory")
-    
-    if query == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
-        return
-    }
+	query := c.Query("q")
+	subcategory := c.Query("subcategory")
 
-    var filter bson.M
-    
-    if subcategory != "" {
-        filter = bson.M{
-            "$and": []bson.M{
-                {"Category.Subcategory": subcategory},
-                {"$or": []bson.M{
-                    {"Name": bson.M{"$regex": query, "$options": "i"}},
-                    {"Category.SubSubcategory": bson.M{"$regex": query, "$options": "i"}},
-                }},
-            },
-        }
-    } else {
-        filter = bson.M{
-            "$or": []bson.M{
-                {"Name": bson.M{"$regex": query, "$options": "i"}},
-                {"Category.Category": bson.M{"$regex": query, "$options": "i"}},
-                {"Category.Subcategory": bson.M{"$regex": query, "$options": "i"}},
-                {"Category.SubSubcategory": bson.M{"$regex": query, "$options": "i"}},
-            },
-        }
-    }
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
+		return
+	}
 
-    var materials []Material
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	var filter bson.M
 
-    cursor, err := collection.Find(ctx, filter)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-        return
-    }
-    defer cursor.Close(ctx)
+	if subcategory != "" {
+		filter = bson.M{
+			"$and": []bson.M{
+				{"Category.Subcategory": subcategory},
+				{"$or": []bson.M{
+					{"Name": bson.M{"$regex": query, "$options": "i"}},
+					{"Category.SubSubcategory": bson.M{"$regex": query, "$options": "i"}},
+				}},
+			},
+		}
+	} else {
+		filter = bson.M{
+			"$or": []bson.M{
+				{"Name": bson.M{"$regex": query, "$options": "i"}},
+				{"Category.Category": bson.M{"$regex": query, "$options": "i"}},
+				{"Category.Subcategory": bson.M{"$regex": query, "$options": "i"}},
+				{"Category.SubSubcategory": bson.M{"$regex": query, "$options": "i"}},
+			},
+		}
+	}
 
-    for cursor.Next(ctx) {
-        var material Material
-        if err := cursor.Decode(&material); err != nil {
-            continue // Skip problematic entries
-        }
-        materials = append(materials, material)
-    }
+	var materials []model.Material
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    if len(materials) == 0 {
-        c.JSON(http.StatusNotFound, gin.H{"error": "No materials found"})
-        return
-    }
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	defer cursor.Close(ctx)
 
-    c.JSON(http.StatusOK, materials)
+	for cursor.Next(ctx) {
+		var material model.Material
+		if err := cursor.Decode(&material); err != nil {
+			continue // Skip problematic entries
+		}
+		materials = append(materials, material)
+	}
+
+	if len(materials) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No materials found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, materials)
 }
-
 
 // Get all materials
 func getMaterials(c *gin.Context) {
-	var materials []Material
+	var materials []model.Material
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -87,7 +89,7 @@ func getMaterials(c *gin.Context) {
 	defer cursor.Close(ctx)
 	er := 0
 	for cursor.Next(ctx) {
-		var material Material
+		var material model.Material
 
 		if err := cursor.Decode(&material); err != nil {
 			// c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding"})
@@ -121,7 +123,7 @@ func getMaterialByID(c *gin.Context) {
 		return
 	}
 
-	var material Material
+	var material model.Material
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err = collection.FindOne(ctx, bson.M{"_id": id}).Decode(&material)
@@ -132,10 +134,11 @@ func getMaterialByID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, material)
 }
+
 // Get materials by category, subcategory, or sub-subcategory
 func getMaterialsByCategory(c *gin.Context) {
-	category := c.Query("category")         // Required
-	subcategory := c.Query("subcategory")   // Optional
+	category := c.Query("category")             // Required
+	subcategory := c.Query("subcategory")       // Optional
 	subSubcategory := c.Query("subsubcategory") // Optional
 
 	if category == "" {
@@ -154,7 +157,7 @@ func getMaterialsByCategory(c *gin.Context) {
 		filter["Category.SubSubcategory"] = subSubcategory
 	}
 
-	var materials []Material
+	var materials []model.Material
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -166,7 +169,7 @@ func getMaterialsByCategory(c *gin.Context) {
 	defer cursor.Close(ctx)
 
 	for cursor.Next(ctx) {
-		var material Material
+		var material model.Material
 		if err := cursor.Decode(&material); err != nil {
 			continue // Skip problematic entries
 		}
@@ -183,7 +186,7 @@ func getMaterialsByCategory(c *gin.Context) {
 
 // Create a new material
 func createMaterial(c *gin.Context) {
-	var material Material
+	var material model.Material
 	if err := c.ShouldBindJSON(&material); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
@@ -204,36 +207,35 @@ func createMaterial(c *gin.Context) {
 // Update an existing material
 // Update an existing material by its "Number" field
 func updateMaterial(c *gin.Context) {
-    numberParam := c.Param("number")
-    if numberParam == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid material Number"})
-        return
-    }
+	numberParam := c.Param("number")
+	if numberParam == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid material Number"})
+		return
+	}
 
-    var updateData map[string]interface{}
-    if err := c.ShouldBindJSON(&updateData); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-        return
-    }
+	var updateData map[string]interface{}
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
 
-    if len(updateData) == 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
-        return
-    }
+	if len(updateData) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    update := bson.M{"$set": updateData}
-    _, err := collection.UpdateOne(ctx, bson.M{"Number": numberParam}, update)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update material"})
-        return
-    }
+	update := bson.M{"$set": updateData}
+	_, err := collection.UpdateOne(ctx, bson.M{"Number": numberParam}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update material"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "Material updated successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Material updated successfully"})
 }
-
 
 // Delete a material
 func deleteMaterial(c *gin.Context) {
@@ -254,10 +256,8 @@ func deleteMaterial(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Material deleted successfully"})
 }
 
-
-
 func GetTypes(c *gin.Context) {
-	var types []Type
+	var types []model.Type
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -268,7 +268,7 @@ func GetTypes(c *gin.Context) {
 	}
 	defer cursor.Close(ctx)
 	for cursor.Next(ctx) {
-		var t Type
+		var t model.Type
 		err := cursor.Decode(&t)
 		if err != nil {
 			// Log the error along with the raw data causing the issue
@@ -278,7 +278,6 @@ func GetTypes(c *gin.Context) {
 		}
 		types = append(types, t)
 	}
-	
 
 	c.JSON(http.StatusOK, types)
 }
@@ -292,7 +291,7 @@ func GetTypeByID(c *gin.Context) {
 		return
 	}
 
-	var t Type
+	var t model.Type
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -307,7 +306,7 @@ func GetTypeByID(c *gin.Context) {
 
 // Create a new type
 func CreateType(c *gin.Context) {
-	var t Type
+	var t model.Type
 	if err := c.BindJSON(&t); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -335,7 +334,7 @@ func UpdateType(c *gin.Context) {
 		return
 	}
 
-	var updateData Type
+	var updateData model.Type
 	if err := c.BindJSON(&updateData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -379,10 +378,10 @@ func getMajorCurrencies(c *gin.Context) {
 	// majorCurrencies := []string{"USD", "EUR", "GBP", "JPY", "CNY", "INR", "AUD", "CAD", "CHF", "SAR", "ZAR", "KRW", "SGD", "AED", "BRL"}
 
 	// Find the latest exchange rates document from MongoDB
-	var result CurrencyDocument
+	var result model.CurrencyDocument
 
 	// Fetch the most recent exchange rate document
-	
+
 	opts := options.FindOne().SetSort(map[string]int{"timestamp": -1}) // Sort by most recent timestamp
 	fmt.Println(opts)
 	err := exchangeRateCollection.FindOne(context.Background(), bson.D{}, opts).Decode(&result)
@@ -421,13 +420,12 @@ func getMajorCurrencies(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"major_currencies": majorRates})
 }
+
 //supplier
 // func createSupplier(c *gin.Context) {
 // 	var supplier Supplier
-	
 
 // 	fmt.Println(c)
-
 
 // 	// Parse form values.
 // 	supplier.Email = c.PostForm("email")
@@ -525,7 +523,7 @@ func getSupplierByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid supplier ID"})
 		return
 	}
-	var supplier Supplier
+	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err = supplierCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&supplier)
@@ -537,7 +535,7 @@ func getSupplierByID(c *gin.Context) {
 }
 func getSupplierByPPID(c *gin.Context) {
 	pid := c.Param("pid")
-	var supplier Supplier
+	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err := supplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
@@ -547,9 +545,10 @@ func getSupplierByPPID(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, supplier)
 }
+
 // createSupplier creates a new supplier and also adds a PaymentRecord with Approved=false and Deleted=false.
 func createSupplier(c *gin.Context) {
-	var supplier Supplier
+	var supplier model.Supplier
 
 	// Parse JSON body.
 	if err := c.ShouldBindJSON(&supplier); err != nil {
@@ -578,11 +577,11 @@ func createSupplier(c *gin.Context) {
 	}
 
 	// Create a PaymentRecord for the new supplier with Approved=false and Deleted=false.
-	paymentRecord := PaymentRecord{
+	paymentRecord := model.PaymentRecord{
 		ID:          primitive.NewObjectID(),
 		SupplierPID: supplier.PID,
 		Approved:    false,
-		Payments:    []Payment{}, // Empty payments list.
+		Payments:    []model.Payment{}, // Empty payments list.
 		Deleted:     false,
 	}
 	_, err = paymentRecordCollection.InsertOne(ctx, paymentRecord)
@@ -607,7 +606,7 @@ func getSupplierByPID(c *gin.Context) {
 	defer cancel()
 
 	// Check for a PaymentRecord for this supplier PID where either Approved is true or Deleted is true.
-	var paymentRec PaymentRecord
+	var paymentRec model.PaymentRecord
 	err := paymentRecordCollection.FindOne(ctx, bson.M{
 		"Supplierpid": pid,
 		"$or": []bson.M{
@@ -621,7 +620,7 @@ func getSupplierByPID(c *gin.Context) {
 	}
 
 	// If a valid PaymentRecord exists, fetch the supplier.
-	var supplier Supplier
+	var supplier model.Supplier
 	err = supplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Supplier with PID %s not found", pid)})
@@ -652,7 +651,7 @@ func getSuppliers(c *gin.Context) {
 	// Collect the SupplierPIDs from these PaymentRecords.
 	var supplierPIDs []string
 	for cursor.Next(ctx) {
-		var rec PaymentRecord
+		var rec model.PaymentRecord
 		if err := cursor.Decode(&rec); err != nil {
 			continue
 		}
@@ -667,9 +666,9 @@ func getSuppliers(c *gin.Context) {
 	}
 	defer suppliersCursor.Close(ctx)
 
-	var suppliers []Supplier
+	var suppliers []model.Supplier
 	for suppliersCursor.Next(ctx) {
-		var supplier Supplier
+		var supplier model.Supplier
 		if err := suppliersCursor.Decode(&supplier); err != nil {
 			continue
 		}
@@ -679,11 +678,10 @@ func getSuppliers(c *gin.Context) {
 	c.JSON(http.StatusOK, suppliers)
 }
 
-
 // getSupplierByEmail returns a supplier by its email.
 func getSupplierByEmail(c *gin.Context) {
 	email := c.Param("email")
-	var supplier Supplier
+	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err := supplierCollection.FindOne(ctx, bson.M{"email": email}).Decode(&supplier)
@@ -693,6 +691,7 @@ func getSupplierByEmail(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, supplier)
 }
+
 // updateSupplier updates an existing supplier. Accepts form data for updates including picture URLs.
 func updateSupplier(c *gin.Context) {
 	idParam := c.Param("id")
@@ -739,9 +738,10 @@ func deleteSupplier(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Supplier deleted successfully"})
 }
+
 // getItems retrieves all items.
 func getItems(c *gin.Context) {
-	var items []Item
+	var items []model.Item
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -753,7 +753,7 @@ func getItems(c *gin.Context) {
 	defer cursor.Close(ctx)
 
 	for cursor.Next(ctx) {
-		var item Item
+		var item model.Item
 		if err := cursor.Decode(&item); err != nil {
 			continue // Skip problematic entries
 		}
@@ -771,7 +771,7 @@ func getItemsBySupplier(c *gin.Context) {
 		return
 	}
 
-	var items []Item
+	var items []model.Item
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -784,7 +784,7 @@ func getItemsBySupplier(c *gin.Context) {
 	defer cursor.Close(ctx)
 
 	for cursor.Next(ctx) {
-		var item Item
+		var item model.Item
 		if err := cursor.Decode(&item); err != nil {
 			continue
 		}
@@ -803,7 +803,7 @@ func getItemsByMaterial(c *gin.Context) {
 		return
 	}
 
-	var items []Item
+	var items []model.Item
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -816,7 +816,7 @@ func getItemsByMaterial(c *gin.Context) {
 	defer cursor.Close(ctx)
 
 	for cursor.Next(ctx) {
-		var item Item
+		var item model.Item
 		if err := cursor.Decode(&item); err != nil {
 			continue
 		}
@@ -828,7 +828,7 @@ func getItemsByMaterial(c *gin.Context) {
 
 // createItem creates a new item.
 func createItem(c *gin.Context) {
-	var item Item
+	var item model.Item
 	if err := c.ShouldBindJSON(&item); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
 		return
@@ -847,6 +847,7 @@ func createItem(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, item)
 }
+
 // createItem creates a new item and then adds its ID to the Items array
 // in the corresponding Material document.
 // func createItem(c *gin.Context) {
@@ -909,7 +910,7 @@ func getItemsByMaterialID(c *gin.Context) {
 		return
 	}
 
-	var items []Item
+	var items []model.Item
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -923,7 +924,7 @@ func getItemsByMaterialID(c *gin.Context) {
 	defer cursor.Close(ctx)
 
 	for cursor.Next(ctx) {
-		var item Item
+		var item model.Item
 		if err := cursor.Decode(&item); err != nil {
 			// Skip problematic entries.
 			continue
@@ -983,9 +984,8 @@ func deleteItem(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Item deleted successfully"})
 }
 
-
 func createPaymentRecord(c *gin.Context) {
-	var record PaymentRecord
+	var record model.PaymentRecord
 	if err := c.ShouldBindJSON(&record); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
 		return
@@ -1006,7 +1006,7 @@ func createPaymentRecord(c *gin.Context) {
 	c.JSON(http.StatusCreated, record)
 }
 func getPaymentRecords(c *gin.Context) {
-	var records []PaymentRecord
+	var records []model.PaymentRecord
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -1019,7 +1019,7 @@ func getPaymentRecords(c *gin.Context) {
 	defer cursor.Close(ctx)
 
 	for cursor.Next(ctx) {
-		var record PaymentRecord
+		var record model.PaymentRecord
 		if err := cursor.Decode(&record); err != nil {
 			continue // Skip problematic entries.
 		}
@@ -1036,7 +1036,7 @@ func getPaymentRecordByID(c *gin.Context) {
 		return
 	}
 
-	var record PaymentRecord
+	var record model.PaymentRecord
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

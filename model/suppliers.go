@@ -1,7 +1,8 @@
-package main
+package model
 
 import (
 	"time"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -26,10 +27,11 @@ type Material struct {
 	Items    []MaterialItem     `bson:"Items,omitempty" json:"Items,omitempty"` // New field: list of items
 }
 type MaterialItem struct {
-    ID   primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-    Name string             `bson:"Name" json:"Name"`
-    // Add additional fields as required.
+	ID   primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Name string             `bson:"Name" json:"Name"`
+	// Add additional fields as required.
 }
+
 // SubSubcategory represents the lowest level in the hierarchy
 type SubSubcategory struct {
 	Name string `bson:"name,omitempty" json:"name,omitempty"`
@@ -37,13 +39,13 @@ type SubSubcategory struct {
 
 // Subcategory represents a subcategory that may contain sub-subcategories
 type Subcategory struct {
-	Name            string           `bson:"name,omitempty" json:"name,omitempty"`
+	Name             string           `bson:"name,omitempty" json:"name,omitempty"`
 	SubSubcategories []SubSubcategory `bson:"sub_subcategories,omitempty" json:"sub_subcategories,omitempty"`
 }
 
 // Category represents a category that may contain subcategories
 type typeCategory struct {
-	Name         string        `bson:"name,omitempty" json:"name,omitempty"`
+	Name          string        `bson:"name,omitempty" json:"name,omitempty"`
 	Subcategories []Subcategory `bson:"subcategories,omitempty" json:"subcategories,omitempty"`
 }
 
@@ -51,14 +53,14 @@ type typeCategory struct {
 type Type struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Name       string             `bson:"name,omitempty" json:"name,omitempty"`
-	Categories []typeCategory         `bson:"categories,omitempty" json:"categories,omitempty"`
+	Categories []typeCategory     `bson:"categories,omitempty" json:"categories,omitempty"`
 }
 
 type CurrencyDocument struct {
-	Timestamp              time.Time           `bson:"timestamp"`
-	TimeLastUpdateUnix     int64            `bson:"time_last_update_unix"`
-	BaseCode              string           `bson:"base_code"`
-	ConversionRates       ConversionRates `bson:"conversion_rates"`
+	Timestamp          time.Time       `bson:"timestamp"`
+	TimeLastUpdateUnix int64           `bson:"time_last_update_unix"`
+	BaseCode           string          `bson:"base_code"`
+	ConversionRates    ConversionRates `bson:"conversion_rates"`
 }
 type ConversionRates struct {
 	USD float64 `bson:"USD"`
@@ -75,28 +77,30 @@ type ConversionRates struct {
 	KRW float64 `bson:"KRW"`
 	SGD float64 `bson:"SGD"`
 	AED float64 `bson:"AED"`
-	BRL float64 `bson:"BRL"`}
+	BRL float64 `bson:"BRL"`
+}
 
-//supplier
+// supplier
 type Supplier struct {
-	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Email          string             `bson:"email" json:"email"`
-	PID            string             `bson:"pid" json:"pid"`
-	BusinessName   string             `bson:"business_name" json:"business_name"`
-	BusinessDesc   string             `bson:"business_description" json:"business_description"`
-	Telephone      string             `bson:"telephone" json:"telephone"`
-	EmailGiven     string             `bson:"email_given" json:"email_given"`
-	Address        string             `bson:"address" json:"address"`
-	Location       Location           `bson:"location" json:"location"`
-	ProfilePicURL  string             `bson:"profile_pic_url" json:"profile_pic_url"`
-	CoverPicURL    string             `bson:"cover_pic_url" json:"cover_pic_url"`
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Email         string             `bson:"email" json:"email"`
+	PID           string             `bson:"pid" json:"pid"`
+	BusinessName  string             `bson:"business_name" json:"business_name"`
+	BusinessDesc  string             `bson:"business_description" json:"business_description"`
+	Telephone     string             `bson:"telephone" json:"telephone"`
+	EmailGiven    string             `bson:"email_given" json:"email_given"`
+	Address       string             `bson:"address" json:"address"`
+	Location      Location           `bson:"location" json:"location"`
+	ProfilePicURL string             `bson:"profile_pic_url" json:"profile_pic_url"`
+	CoverPicURL   string             `bson:"cover_pic_url" json:"cover_pic_url"`
 }
 
 type Location struct {
 	Latitude  float64 `bson:"latitude" json:"latitude"`
 	Longitude float64 `bson:"longitude" json:"longitude"`
 }
-//items model
+
+// items model
 type Item struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name        string             `bson:"name" json:"name"`
@@ -124,6 +128,7 @@ type PaymentRecord struct {
 	Payments    []Payment          `bson:"Payments" json:"Payments"`
 	Deleted     bool               `bson:"Deleted" json:"Deleted"`
 }
+
 // package main
 
 // import (
