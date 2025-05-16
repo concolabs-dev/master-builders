@@ -127,7 +127,7 @@ func main() {
 	handlers.InitProfessionalCollections(client.Database(dbName))
 
 	router.POST("/professionals", handlers.CreateProfessional)
-	router.GET("/professionals", handlers.GetProfessionals)
+	router.GET("/professionals", handlers.GetAllProfessionals)
 	router.GET("/professionals/:id", handlers.GetProfessionalByID)
 	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
 	router.GET("/professionals/email/:email", handlers.GetProfessionalByEmail)
