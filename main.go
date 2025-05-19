@@ -135,6 +135,12 @@ func main() {
 	router.DELETE("/professionals/:id", handlers.DeleteProfessional)
 	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
 
+	router.POST("/projects", handlers.CreateProject)                     // Create a new project
+	router.GET("/projects", handlers.GetProjects)                        // Get all projects
+	router.GET("/projects/professional/:pid", handlers.GetProjectsByPID) // Get projects by professional PID
+	router.GET("/projects/:id", handlers.GetProjectByID)                 // Get a project by ID
+	router.PUT("/projects/:id", handlers.UpdateProject)                  // Update a project
+	router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
 	// Start the server
 	port := os.Getenv("PORT")
 	println("Server running on port " + port)

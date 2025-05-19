@@ -17,29 +17,38 @@ import (
 
 var professionalCollection *mongo.Collection
 var professionalPaymentRecordCollection *mongo.Collection
+var projectCollection *mongo.Collection
 
 // InitProfessionalCollections initializes the collections for professionals
 func InitProfessionalCollections(database *mongo.Database) {
 	professionalCollection = database.Collection("professionals")
 	professionalPaymentRecordCollection = database.Collection("professional_payment_records")
+	projectCollection = database.Collection("projects")
 }
 
 // CreateProfessional creates a new professional and adds a payment record with Approved=false and Deleted=false
 func CreateProfessional(c *gin.Context) {
 	var professional model.Professional
-
+	fmt.Println("Creating a new professional")
 	// Parse JSON body
+	// var rawBody map[string]interface{}
+	// if err := c.ShouldBindJSON(&rawBody); err != nil {
+	// 	fmt.Println("Raw JSON body:", rawBody)
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+	// 	return
+	// }
+	// fmt.Println("Raw JSON body:", rawBody)
 	if err := c.ShouldBindJSON(&professional); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
 		return
 	}
 
 	// Validate location
-	if professional.Location.Latitude == 0 && professional.Location.Longitude == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid location data"})
-		return
-	}
-
+	// if professional.Location.Latitude == 0 && professional.Location.Longitude == 0 {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid location data"})
+	// 	return
+	// }
+	fmt.Println("Location data is valid")
 	// Set the professional ID and PID if not provided
 	professional.ID = primitive.NewObjectID()
 	if professional.PID == "" {
@@ -277,4 +286,149 @@ func GetAllProfessionals(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, professionals)
+}
+
+// projects handlers
+func CreateProject(c *gin.Context) {
+	var project model.Project
+
+	// Parse JSON body
+	if err := c.ShouldBindJSON(&project); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
+
+	// Validate PID
+	if project.PID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "PID is required"})
+		return
+	}
+
+	// Set a new ObjectID for the project
+	project.ID = primitive.NewObjectID()
+
+	// Insert the project into the database
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := projectCollection.InsertOne(ctx, project)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create project"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, project)
+}
+func GetProjects(c *gin.Context) {
+	var projects []model.Project
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := projectCollection.Find(ctx, bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var project model.Project
+		if err := cursor.Decode(&project); err != nil {
+			continue // Skip problematic entries
+		}
+		projects = append(projects, project)
+	}
+
+	c.JSON(http.StatusOK, projects)
+}
+func GetProjectsByPID(c *gin.Context) {
+	pid := c.Param("pid")
+
+	var projects []model.Project
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := projectCollection.Find(ctx, bson.M{"pid": pid})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var project model.Project
+		if err := cursor.Decode(&project); err != nil {
+			continue // Skip problematic entries
+		}
+		projects = append(projects, project)
+	}
+
+	c.JSON(http.StatusOK, projects)
+}
+func GetProjectByID(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	var project model.Project
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = projectCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&project)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, project)
+}
+func UpdateProject(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	var updateData map[string]interface{}
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
+
+	// Remove the "id" field if present
+	delete(updateData, "id")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": updateData}
+	_, err = projectCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update project"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Project updated successfully"})
+}
+func DeleteProject(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = projectCollection.DeleteOne(ctx, bson.M{"_id": objID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete project"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Project deleted successfully"})
 }
