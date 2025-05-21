@@ -1,34 +1,34 @@
-# Stage 1: Build the Go application
+# Stage 1: Build both Go applications
 FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Copy go.mod and go.sum first to leverage Docker cache
+# Copy Go modules
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the rest of the application source code
+# Copy the rest of the source
 COPY . .
 
-# Build the application
-# Ensure your main package is correctly referenced, e.g., ./cmd/server/main.go or just ./ if main.go is in the root
-RUN CGO_ENABLED=0 go build -o /master-builders-app .
+# Build the main Gin API
+RUN CGO_ENABLED=0 go build 
 
-# Stage 2: Create the final lightweight image
+# Build the redis helper by changing to the redis directory
+WORKDIR /app/redis
+RUN CGO_ENABLED=0 go build -o /redis-helper .
+RUN ls -l /redis-helper
+
+# Stage 2: Final image
 FROM alpine:latest
 
 WORKDIR /app
 
-# Copy the built application from the builder stage
-COPY --from=builder /master-builders-app /app/master-builders-app
+# Copy binaries
+COPY --from=builder /app/material-api /app/material-api
+COPY --from=builder /app/redis/redis-helper /app/redis-helper
 
-# Copy the .env file into the working directory of the application.
-# The Go app uses godotenv.Load() and will look for .env here.
-# Environment variables set in docker-compose.yml will override these if godotenv doesn't overwrite.
+# Copy env
 COPY .env /app/.env
 
-# The application will listen on the PORT specified in the .env file (e.g., 8040)
-# EXPOSE 8040 (This is metadata; actual port mapping is in docker-compose.yml)
-
-# Command to run the application
-CMD ["/app/master-builders-app"]
+# Run both binaries
+CMD ["/bin/sh", "-c", "/app/material-api & /app/redis-helper"]

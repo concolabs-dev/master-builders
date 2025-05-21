@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   mongo:
     image: mongo:latest
@@ -5,26 +7,41 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mongo-data:/data/db # Persists MongoDB data
+      - mongo-data:/data/db
       - ./db:/dump_data
-      - ./init-mongo/script.sh:/docker-entrypoint-initdb.d/init-mongo.sh # Mounts the init script
     environment:
-      MONGO_INITDB_DATABASE: materials_db # Ensures this database is targeted by init scripts
+      MONGO_INITDB_DATABASE: materials_db
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: buildmarket_redis
+    ports:
+      - "6379:6379"
     restart: unless-stopped
 
   app:
     build:
-      context: ./
+      context: .
       dockerfile: Dockerfile
     container_name: buildmarket_app
     ports:
-      - "${APP_PORT_HOST:-8040}:8040"
-    env_file:
-      - .env
-    environment:
-      MONGO_URI: mongodb://mongo:27017
+      - "8080:8080"  # Proxy will run on 8080
+      - "8040:8040"  # Backend will run on 8040
     depends_on:
+      - redis
       - mongo
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: buildmarket_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
     restart: unless-stopped
 
 volumes:
