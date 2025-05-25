@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"net/http"
@@ -15,16 +16,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"material-api/auth"
+	"material-api/db"
 	"material-api/handlers"
-)
-
-var (
-	collection              *mongo.Collection
-	typeCollection          *mongo.Collection
-	exchangeRateCollection  *mongo.Collection
-	supplierCollection      *mongo.Collection
-	itemCollection          *mongo.Collection
-	paymentRecordCollection *mongo.Collection
 )
 
 func main() {
@@ -40,6 +34,12 @@ func main() {
 		log.Println("INFO: Running in DEBUG mode. Authentication and Backend API checks will be disabled.")
 	} else {
 		log.Println("INFO: Running in PRODUCTION mode. Authentication and Backend API checks are ENABLED.")
+	}
+
+	jwksURL := os.Getenv("AUT0_JWKS_URL")
+	// Initialize JWKS once
+	if err := auth.InitializeJWKS(jwksURL); err != nil {
+		log.Fatalf("Failed to initialize JWKS: %v", err)
 	}
 
 	// Connect to MongoDB
@@ -60,21 +60,22 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	collectionName := os.Getenv("COLLECTION_NAME1")
 	typeCollectionName := os.Getenv("COLLECTION_NAME2")
-	collection = client.Database(dbName).Collection(collectionName)
-	typeCollection = client.Database(dbName).Collection(typeCollectionName)
-	exchangeRateCollection = client.Database(dbName).Collection("rates")
-	supplierCollection = client.Database(os.Getenv("DB_NAME")).Collection("suppliers")
-	itemCollection = client.Database(os.Getenv("DB_NAME")).Collection("items")
-	paymentRecordCollection = client.Database(os.Getenv("DB_NAME")).Collection("payments")
+	db.Collection = client.Database(dbName).Collection(collectionName)
+	db.TypeCollection = client.Database(dbName).Collection(typeCollectionName)
+	db.ExchangeRateCollection = client.Database(dbName).Collection("rates")
+	db.SupplierCollection = client.Database(os.Getenv("DB_NAME")).Collection("suppliers")
+	db.ItemCollection = client.Database(os.Getenv("DB_NAME")).Collection("items")
+	db.PaymentRecordCollection = client.Database(os.Getenv("DB_NAME")).Collection("payments")
 	// testMaterials()
 	go startExchangeRateUpdater()
 	// Set up the Gin router
 
 	router := gin.Default()
+	router.Use(AuthMiddleware())
 
-	if !debugMode {
-		router.Use(apiSecretMiddleware())
-	}
+	// if !debugMode {
+	// 	router.Use(apiSecretMiddleware())
+	// }
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // Change to your frontend URL
@@ -89,39 +90,39 @@ func main() {
 	router.GET("/materials/:id", getMaterialByID)
 	router.GET("/materials/filter", getMaterialsByCategory)
 
-	router.POST("/materials", createMaterial)
-	router.PUT("/materials/:number", updateMaterial)
-	router.DELETE("/materials/:id", deleteMaterial)
+	router.POST("/materials", auth.RequireRoles("admin"), createMaterial)
+	router.PUT("/materials/:number", auth.RequireRoles("admin"), updateMaterial)
+	router.DELETE("/materials/:id", auth.RequireRoles("admin"), deleteMaterial)
 	// Routes for handling types
 	router.GET("/types", GetTypes)
 	router.GET("/types/:id", GetTypeByID)
-	router.POST("/types", CreateType)
-	router.PUT("/types/:id", UpdateType)
-	router.DELETE("/types/:id", DeleteType)
+	router.POST("/types", auth.RequireRoles("admin"), CreateType)
+	router.PUT("/types/:id", auth.RequireRoles("admin"), UpdateType)
+	router.DELETE("/types/:id", auth.RequireRoles("admin"), DeleteType)
 	router.GET("/forex", getMajorCurrencies)
 	// Suppliers endpoints.
-	router.POST("/suppliers", createSupplier)
+	router.POST("/suppliers", auth.RequireOwnership("suppplier"), createSupplier)
 	router.GET("/suppliers", getSuppliers)
 	router.GET("/suppliers/:id", getSupplierByID)
 	router.GET("/suppliers/pid/:pid", getSupplierByPID)
 	router.GET("/suppliers/pid/napproved/:pid", getSupplierByPPID)
 	router.GET("/suppliers/email/:email", getSupplierByEmail)
-	router.PUT("/suppliers/:id", updateSupplier)
-	router.DELETE("/suppliers/:id", deleteSupplier)
+	router.PUT("/suppliers/:id", auth.RequireOwnership("suppplier"), updateSupplier)
+	router.DELETE("/suppliers/:id", auth.RequireOwnership("suppplier"), deleteSupplier)
 
 	//items routes
 	router.GET("/items", getItems)
 	router.GET("/items/supplier/:supplierPid", getItemsBySupplier)
 	router.GET("/items/material/:materialId", getItemsByMaterial)
-	router.POST("/items", createItem)
-	router.PUT("/items/:id", updateItem)
-	router.DELETE("/items/:id", deleteItem)
+	router.POST("/items", auth.RequireOwnership("item"), createItem)
+	router.PUT("/items/:id", auth.RequireOwnership("item"), updateItem)
+	router.DELETE("/items/:id", auth.RequireOwnership("item"), deleteItem)
 
-	router.POST("/paymentRecords", createPaymentRecord)
+	router.POST("/paymentRecords", auth.RequireOwnership("paymentRecord"), createPaymentRecord)
 	router.GET("/paymentRecords", getPaymentRecords)
 	router.GET("/paymentRecords/:id", getPaymentRecordByID)
-	router.PUT("/paymentRecords/:id", updatePaymentRecord)
-	router.DELETE("/paymentRecords/:id", deletePaymentRecord)
+	router.PUT("/paymentRecords/:id", auth.RequireOwnership("paymentRecord"), updatePaymentRecord)
+	router.DELETE("/paymentRecords/:id", auth.RequireOwnership("paymentRecord"), deletePaymentRecord)
 
 	// router.GET("/items/material/:materialId", getItemsByMaterialID)
 	handlers.InitProfessionalCollections(client.Database(dbName))
@@ -141,18 +142,18 @@ func main() {
 	router.Run(":" + port)
 }
 
-// New middleware to check for the API secret header.
-func apiSecretMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		expectedSecret := os.Getenv("BACKEND_API_SECRET")
-		providedSecret := c.GetHeader("api-secert")
-		if providedSecret == "" || providedSecret != expectedSecret {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
-		c.Next()
-	}
-}
+// // New middleware to check for the API secret header.
+// func apiSecretMiddleware() gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		expectedSecret := os.Getenv("BACKEND_API_SECRET")
+// 		providedSecret := c.GetHeader("api-secert")
+// 		if providedSecret == "" || providedSecret != expectedSecret {
+// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+// 			return
+// 		}
+// 		c.Next()
+// 	}
+// }
 
 func startExchangeRateUpdater() {
 	ticker := time.NewTicker(24 * time.Hour)
@@ -191,7 +192,7 @@ func updateExchangeRates() {
 	defer cancel()
 
 	// Insert the data into MongoDB
-	_, err = exchangeRateCollection.InsertOne(ctx, map[string]interface{}{
+	_, err = db.ExchangeRateCollection.InsertOne(ctx, map[string]interface{}{
 		"timestamp":             time.Now(),
 		"time_last_update_unix": result.TimeLastUpdateUnix,
 		"base_code":             result.BaseCode,
@@ -201,5 +202,28 @@ func updateExchangeRates() {
 		log.Println("Error inserting exchange rates into MongoDB:", err)
 	} else {
 		log.Println("Exchange rates updated successfully")
+	}
+}
+
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+
+			roles, userID, err := auth.ParseJWT(token)
+			if err != nil {
+				// Invalid token
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "validation failed"})
+				return
+			}
+
+			// Valid token: set values
+			c.Set("userID", userID)
+			c.Set("roles", roles)
+		}
+
+		// No token — proceed (public access)
+		c.Next()
 	}
 }

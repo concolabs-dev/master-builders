@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"material-api/db"
 	"material-api/model"
 )
 
@@ -52,7 +53,7 @@ func searchMaterials(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, filter)
+	cursor, err := db.Collection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -81,7 +82,7 @@ func getMaterials(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, bson.M{})
+	cursor, err := db.Collection.Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -126,7 +127,7 @@ func getMaterialByID(c *gin.Context) {
 	var material model.Material
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err = collection.FindOne(ctx, bson.M{"_id": id}).Decode(&material)
+	err = db.Collection.FindOne(ctx, bson.M{"_id": id}).Decode(&material)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Material not found"})
 		return
@@ -161,7 +162,7 @@ func getMaterialsByCategory(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, filter)
+	cursor, err := db.Collection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -195,7 +196,7 @@ func createMaterial(c *gin.Context) {
 	material.ID = primitive.NewObjectID()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := collection.InsertOne(ctx, material)
+	_, err := db.Collection.InsertOne(ctx, material)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not insert material"})
 		return
@@ -228,7 +229,7 @@ func updateMaterial(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": updateData}
-	_, err := collection.UpdateOne(ctx, bson.M{"Number": numberParam}, update)
+	_, err := db.Collection.UpdateOne(ctx, bson.M{"Number": numberParam}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update material"})
 		return
@@ -247,7 +248,7 @@ func deleteMaterial(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = collection.DeleteOne(ctx, bson.M{"_id": id})
+	_, err = db.Collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not delete material"})
 		return
@@ -261,7 +262,7 @@ func GetTypes(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := typeCollection.Find(ctx, bson.M{})
+	cursor, err := db.TypeCollection.Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -295,7 +296,7 @@ func GetTypeByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = typeCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&t)
+	err = db.TypeCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&t)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Type not found"})
 		return
@@ -316,7 +317,7 @@ func CreateType(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := typeCollection.InsertOne(ctx, t)
+	_, err := db.TypeCollection.InsertOne(ctx, t)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create type"})
 		return
@@ -344,7 +345,7 @@ func UpdateType(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": updateData}
-	_, err = typeCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	_, err = db.TypeCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update type"})
 		return
@@ -365,7 +366,7 @@ func DeleteType(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = typeCollection.DeleteOne(ctx, bson.M{"_id": objID})
+	_, err = db.TypeCollection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete type"})
 		return
@@ -384,7 +385,7 @@ func getMajorCurrencies(c *gin.Context) {
 
 	opts := options.FindOne().SetSort(map[string]int{"timestamp": -1}) // Sort by most recent timestamp
 	fmt.Println(opts)
-	err := exchangeRateCollection.FindOne(context.Background(), bson.D{}, opts).Decode(&result)
+	err := db.ExchangeRateCollection.FindOne(context.Background(), bson.D{}, opts).Decode(&result)
 	fmt.Println(result)
 	if err != nil {
 		log.Println("Error fetching exchange rates from MongoDB:", err)
@@ -526,7 +527,7 @@ func getSupplierByID(c *gin.Context) {
 	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err = supplierCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&supplier)
+	err = db.SupplierCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&supplier)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Supplier not found"})
 		return
@@ -538,7 +539,7 @@ func getSupplierByPPID(c *gin.Context) {
 	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err := supplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
+	err := db.SupplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Supplier with PID %s not found", pid)})
 		return
@@ -570,7 +571,7 @@ func createSupplier(c *gin.Context) {
 	defer cancel()
 
 	// Insert the supplier into the database.
-	_, err := supplierCollection.InsertOne(ctx, supplier)
+	_, err := db.SupplierCollection.InsertOne(ctx, supplier)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create supplier"})
 		return
@@ -584,7 +585,7 @@ func createSupplier(c *gin.Context) {
 		Payments:    []model.Payment{}, // Empty payments list.
 		Deleted:     false,
 	}
-	_, err = paymentRecordCollection.InsertOne(ctx, paymentRecord)
+	_, err = db.PaymentRecordCollection.InsertOne(ctx, paymentRecord)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Supplier created but failed to create payment record"})
 		return
@@ -607,7 +608,7 @@ func getSupplierByPID(c *gin.Context) {
 
 	// Check for a PaymentRecord for this supplier PID where either Approved is true or Deleted is true.
 	var paymentRec model.PaymentRecord
-	err := paymentRecordCollection.FindOne(ctx, bson.M{
+	err := db.PaymentRecordCollection.FindOne(ctx, bson.M{
 		"Supplierpid": pid,
 		"$or": []bson.M{
 			{"Approved": true},
@@ -621,7 +622,7 @@ func getSupplierByPID(c *gin.Context) {
 
 	// If a valid PaymentRecord exists, fetch the supplier.
 	var supplier model.Supplier
-	err = supplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
+	err = db.SupplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Supplier with PID %s not found", pid)})
 		return
@@ -636,7 +637,7 @@ func getSuppliers(c *gin.Context) {
 	defer cancel()
 
 	// Find all PaymentRecords that satisfy the condition.
-	cursor, err := paymentRecordCollection.Find(ctx, bson.M{
+	cursor, err := db.PaymentRecordCollection.Find(ctx, bson.M{
 		"$or": []bson.M{
 			{"Approved": true},
 			{"Deleted": true},
@@ -659,7 +660,7 @@ func getSuppliers(c *gin.Context) {
 	}
 
 	// Now find suppliers whose 'pid' is in the supplierPIDs list.
-	suppliersCursor, err := supplierCollection.Find(ctx, bson.M{"pid": bson.M{"$in": supplierPIDs}})
+	suppliersCursor, err := db.SupplierCollection.Find(ctx, bson.M{"pid": bson.M{"$in": supplierPIDs}})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching suppliers"})
 		return
@@ -684,7 +685,7 @@ func getSupplierByEmail(c *gin.Context) {
 	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err := supplierCollection.FindOne(ctx, bson.M{"email": email}).Decode(&supplier)
+	err := db.SupplierCollection.FindOne(ctx, bson.M{"email": email}).Decode(&supplier)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Supplier with email %s not found", email)})
 		return
@@ -713,7 +714,7 @@ func updateSupplier(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = supplierCollection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": updateData})
+	_, err = db.SupplierCollection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": updateData})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update supplier"})
 		return
@@ -731,7 +732,7 @@ func deleteSupplier(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = supplierCollection.DeleteOne(ctx, bson.M{"_id": objID})
+	_, err = db.SupplierCollection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete supplier"})
 		return
@@ -745,7 +746,7 @@ func getItems(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := itemCollection.Find(ctx, bson.M{})
+	cursor, err := db.ItemCollection.Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -776,7 +777,7 @@ func getItemsBySupplier(c *gin.Context) {
 	defer cancel()
 
 	filter := bson.M{"supplierPid": supplierPid}
-	cursor, err := itemCollection.Find(ctx, filter)
+	cursor, err := db.ItemCollection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -808,7 +809,7 @@ func getItemsByMaterial(c *gin.Context) {
 	defer cancel()
 
 	filter := bson.M{"materialId": materialId}
-	cursor, err := itemCollection.Find(ctx, filter)
+	cursor, err := db.ItemCollection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -839,7 +840,7 @@ func createItem(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := itemCollection.InsertOne(ctx, item)
+	_, err := db.ItemCollection.InsertOne(ctx, item)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create item"})
 		return
@@ -916,7 +917,7 @@ func getItemsByMaterialID(c *gin.Context) {
 
 	// Query the items collection using the materialId field.
 	filter := bson.M{"materialId": materialId}
-	cursor, err := itemCollection.Find(ctx, filter)
+	cursor, err := db.ItemCollection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -955,7 +956,7 @@ func updateItem(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	update := bson.M{"$set": updateData}
-	_, err = itemCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	_, err = db.ItemCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update item"})
 		return
@@ -975,7 +976,7 @@ func deleteItem(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = itemCollection.DeleteOne(ctx, bson.M{"_id": objID})
+	_, err = db.ItemCollection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete item"})
 		return
@@ -997,7 +998,7 @@ func createPaymentRecord(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := paymentRecordCollection.InsertOne(ctx, record)
+	_, err := db.PaymentRecordCollection.InsertOne(ctx, record)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment record"})
 		return
@@ -1011,7 +1012,7 @@ func getPaymentRecords(c *gin.Context) {
 	defer cancel()
 
 	// Only return records that are not marked as deleted.
-	cursor, err := paymentRecordCollection.Find(ctx, bson.M{"Deleted": false})
+	cursor, err := db.PaymentRecordCollection.Find(ctx, bson.M{"Deleted": false})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -1040,7 +1041,7 @@ func getPaymentRecordByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = paymentRecordCollection.FindOne(ctx, bson.M{"_id": objID, "Deleted": false}).Decode(&record)
+	err = db.PaymentRecordCollection.FindOne(ctx, bson.M{"_id": objID, "Deleted": false}).Decode(&record)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Payment record not found"})
 		return
@@ -1066,7 +1067,7 @@ func updatePaymentRecord(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": updateData}
-	_, err = paymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	_, err = db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update payment record"})
 		return
@@ -1087,7 +1088,7 @@ func deletePaymentRecord(c *gin.Context) {
 
 	// Soft delete by setting the Deleted field to true.
 	update := bson.M{"$set": bson.M{"Deleted": true}}
-	_, err = paymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	_, err = db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment record"})
 		return
