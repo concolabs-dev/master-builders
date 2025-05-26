@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/MicahParks/keyfunc"
@@ -35,18 +36,23 @@ func InitializeJWKS(jwksURL string) error {
 // ParseJWT validates the token and returns userId and role.
 func ParseJWT(tokenString string) ([]string, string, error) {
 	if jwks == nil {
+		log.Println("JWKS not initialized")
 		return nil, "", errors.New("JWKS not initialized")
 	}
 
 	claims := &CustomClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, jwks.Keyfunc)
 	if err != nil || !token.Valid {
+		log.Println("Invalid or expired token")
 		return nil, "", errors.New("invalid or expired token")
 	}
 
 	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+		log.Println("Token expired")
 		return nil, "", errors.New("token expired")
 	}
+
+	log.Println("Roles and UserId found: ", claims.Roles, "------", claims.Subject)
 
 	return claims.Roles, claims.Subject, nil
 }

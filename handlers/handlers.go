@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"material-api/model"
 )
 
-func searchMaterials(c *gin.Context) {
+func SearchMaterials(c *gin.Context) {
 	query := c.Query("q")
 	subcategory := c.Query("subcategory")
 
@@ -77,7 +77,7 @@ func searchMaterials(c *gin.Context) {
 }
 
 // Get all materials
-func getMaterials(c *gin.Context) {
+func GetMaterials(c *gin.Context) {
 	var materials []model.Material
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -117,7 +117,7 @@ func getMaterials(c *gin.Context) {
 }
 
 // Get material by ID
-func getMaterialByID(c *gin.Context) {
+func GetMaterialByID(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
@@ -137,7 +137,7 @@ func getMaterialByID(c *gin.Context) {
 }
 
 // Get materials by category, subcategory, or sub-subcategory
-func getMaterialsByCategory(c *gin.Context) {
+func GetMaterialsByCategory(c *gin.Context) {
 	category := c.Query("category")             // Required
 	subcategory := c.Query("subcategory")       // Optional
 	subSubcategory := c.Query("subsubcategory") // Optional
@@ -186,7 +186,7 @@ func getMaterialsByCategory(c *gin.Context) {
 }
 
 // Create a new material
-func createMaterial(c *gin.Context) {
+func CreateMaterial(c *gin.Context) {
 	var material model.Material
 	if err := c.ShouldBindJSON(&material); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
@@ -207,7 +207,7 @@ func createMaterial(c *gin.Context) {
 
 // Update an existing material
 // Update an existing material by its "Number" field
-func updateMaterial(c *gin.Context) {
+func UpdateMaterial(c *gin.Context) {
 	numberParam := c.Param("number")
 	if numberParam == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid material Number"})
@@ -239,7 +239,7 @@ func updateMaterial(c *gin.Context) {
 }
 
 // Delete a material
-func deleteMaterial(c *gin.Context) {
+func DeleteMaterial(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
@@ -374,7 +374,7 @@ func DeleteType(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Type deleted successfully"})
 }
-func getMajorCurrencies(c *gin.Context) {
+func GetMajorCurrencies(c *gin.Context) {
 	// List of major currencies you want to fetch from the database
 	// majorCurrencies := []string{"USD", "EUR", "GBP", "JPY", "CNY", "INR", "AUD", "CAD", "CHF", "SAR", "ZAR", "KRW", "SGD", "AED", "BRL"}
 
@@ -517,7 +517,7 @@ func getMajorCurrencies(c *gin.Context) {
 // }
 
 // getSupplierByID returns a supplier by its ID.
-func getSupplierByID(c *gin.Context) {
+func GetSupplierByID(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
@@ -534,7 +534,7 @@ func getSupplierByID(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, supplier)
 }
-func getSupplierByPPID(c *gin.Context) {
+func GetSupplierByPPID(c *gin.Context) {
 	pid := c.Param("pid")
 	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -548,7 +548,7 @@ func getSupplierByPPID(c *gin.Context) {
 }
 
 // createSupplier creates a new supplier and also adds a PaymentRecord with Approved=false and Deleted=false.
-func createSupplier(c *gin.Context) {
+func CreateSupplier(c *gin.Context) {
 	var supplier model.Supplier
 
 	// Parse JSON body.
@@ -596,7 +596,7 @@ func createSupplier(c *gin.Context) {
 }
 
 // getSupplierByPID returns a supplier only if its associated PaymentRecord is approved or deleted.
-func getSupplierByPID(c *gin.Context) {
+func GetSupplierByPID(c *gin.Context) {
 	pid := c.Param("pid")
 	if pid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Supplier PID is required"})
@@ -632,7 +632,7 @@ func getSupplierByPID(c *gin.Context) {
 }
 
 // getSuppliers returns all suppliers whose PaymentRecord is either approved or marked as deleted.
-func getSuppliers(c *gin.Context) {
+func GetSuppliers(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -680,7 +680,7 @@ func getSuppliers(c *gin.Context) {
 }
 
 // getSupplierByEmail returns a supplier by its email.
-func getSupplierByEmail(c *gin.Context) {
+func GetSupplierByEmail(c *gin.Context) {
 	email := c.Param("email")
 	var supplier model.Supplier
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -694,7 +694,7 @@ func getSupplierByEmail(c *gin.Context) {
 }
 
 // updateSupplier updates an existing supplier. Accepts form data for updates including picture URLs.
-func updateSupplier(c *gin.Context) {
+func UpdateSupplier(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
@@ -723,7 +723,7 @@ func updateSupplier(c *gin.Context) {
 }
 
 // deleteSupplier removes a supplier by its ID.
-func deleteSupplier(c *gin.Context) {
+func DeleteSupplier(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
@@ -741,7 +741,7 @@ func deleteSupplier(c *gin.Context) {
 }
 
 // getItems retrieves all items.
-func getItems(c *gin.Context) {
+func GetItems(c *gin.Context) {
 	var items []model.Item
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -765,7 +765,7 @@ func getItems(c *gin.Context) {
 }
 
 // getItemsBySupplier retrieves all items for a given supplier PID.
-func getItemsBySupplier(c *gin.Context) {
+func GetItemsBySupplier(c *gin.Context) {
 	supplierPid := c.Param("supplierPid")
 	if supplierPid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Supplier PID is required"})
@@ -796,7 +796,7 @@ func getItemsBySupplier(c *gin.Context) {
 }
 
 // getItemsByMaterial retrieves all items for a given material ID.
-func getItemsByMaterial(c *gin.Context) {
+func GetItemsByMaterial(c *gin.Context) {
 	materialId := c.Param("materialId")
 	fmt.Println(materialId)
 	if materialId == "" {
@@ -828,7 +828,7 @@ func getItemsByMaterial(c *gin.Context) {
 }
 
 // createItem creates a new item.
-func createItem(c *gin.Context) {
+func CreateItem(c *gin.Context) {
 	var item model.Item
 	if err := c.ShouldBindJSON(&item); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
@@ -904,7 +904,7 @@ func createItem(c *gin.Context) {
 // 	c.JSON(http.StatusCreated, item)
 // }
 
-func getItemsByMaterialID(c *gin.Context) {
+func GetItemsByMaterialID(c *gin.Context) {
 	materialId := c.Param("materialId")
 	if materialId == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Material ID is required"})
@@ -937,7 +937,7 @@ func getItemsByMaterialID(c *gin.Context) {
 }
 
 // updateItem updates an existing item by its ID.
-func updateItem(c *gin.Context) {
+func UpdateItem(c *gin.Context) {
 	id := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -966,7 +966,7 @@ func updateItem(c *gin.Context) {
 }
 
 // deleteItem deletes an item by its ID.
-func deleteItem(c *gin.Context) {
+func DeleteItem(c *gin.Context) {
 	id := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -985,7 +985,7 @@ func deleteItem(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Item deleted successfully"})
 }
 
-func createPaymentRecord(c *gin.Context) {
+func CreatePaymentRecord(c *gin.Context) {
 	var record model.PaymentRecord
 	if err := c.ShouldBindJSON(&record); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
@@ -1006,7 +1006,7 @@ func createPaymentRecord(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, record)
 }
-func getPaymentRecords(c *gin.Context) {
+func GetPaymentRecords(c *gin.Context) {
 	var records []model.PaymentRecord
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1029,7 +1029,7 @@ func getPaymentRecords(c *gin.Context) {
 
 	c.JSON(http.StatusOK, records)
 }
-func getPaymentRecordByID(c *gin.Context) {
+func GetPaymentRecordByID(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
@@ -1049,7 +1049,7 @@ func getPaymentRecordByID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, record)
 }
-func updatePaymentRecord(c *gin.Context) {
+func UpdatePaymentRecord(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
@@ -1075,7 +1075,7 @@ func updatePaymentRecord(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Payment record updated successfully"})
 }
-func deletePaymentRecord(c *gin.Context) {
+func DeletePaymentRecord(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {

@@ -85,44 +85,45 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	router.GET("/search", searchMaterials)
-	router.GET("/materials", getMaterials)
-	router.GET("/materials/:id", getMaterialByID)
-	router.GET("/materials/filter", getMaterialsByCategory)
 
-	router.POST("/materials", auth.RequireRoles("admin"), createMaterial)
-	router.PUT("/materials/:number", auth.RequireRoles("admin"), updateMaterial)
-	router.DELETE("/materials/:id", auth.RequireRoles("admin"), deleteMaterial)
+	router.GET("/search", handlers.SearchMaterials)
+	router.GET("/materials", handlers.GetMaterials)
+	router.GET("/materials/:id", handlers.GetMaterialByID)
+	router.GET("/materials/filter", handlers.GetMaterialsByCategory)
+
+	router.POST("/materials", auth.RequireRoles("admin"), handlers.CreateMaterial)
+	router.PUT("/materials/:number", auth.RequireRoles("admin"), handlers.UpdateMaterial)
+	router.DELETE("/materials/:id", auth.RequireRoles("admin"), handlers.DeleteMaterial)
 	// Routes for handling types
-	router.GET("/types", GetTypes)
-	router.GET("/types/:id", GetTypeByID)
-	router.POST("/types", auth.RequireRoles("admin"), CreateType)
-	router.PUT("/types/:id", auth.RequireRoles("admin"), UpdateType)
-	router.DELETE("/types/:id", auth.RequireRoles("admin"), DeleteType)
-	router.GET("/forex", getMajorCurrencies)
+	router.GET("/types", handlers.GetTypes)
+	router.GET("/types/:id", handlers.GetTypeByID)
+	router.POST("/types", auth.RequireRoles("admin"), handlers.CreateType)
+	router.PUT("/types/:id", auth.RequireRoles("admin"), handlers.UpdateType)
+	router.DELETE("/types/:id", auth.RequireRoles("admin"), handlers.DeleteType)
+	router.GET("/forex", handlers.GetMajorCurrencies)
 	// Suppliers endpoints.
-	router.POST("/suppliers", auth.RequireOwnership("suppplier"), createSupplier)
-	router.GET("/suppliers", getSuppliers)
-	router.GET("/suppliers/:id", getSupplierByID)
-	router.GET("/suppliers/pid/:pid", getSupplierByPID)
-	router.GET("/suppliers/pid/napproved/:pid", getSupplierByPPID)
-	router.GET("/suppliers/email/:email", getSupplierByEmail)
-	router.PUT("/suppliers/:id", auth.RequireOwnership("suppplier"), updateSupplier)
-	router.DELETE("/suppliers/:id", auth.RequireOwnership("suppplier"), deleteSupplier)
+	router.POST("/suppliers", auth.RequireOwnership("supplier"), handlers.CreateSupplier)
+	router.GET("/suppliers", handlers.GetSuppliers)
+	router.GET("/suppliers/:id", handlers.GetSupplierByID)
+	router.GET("/suppliers/pid/:pid", handlers.GetSupplierByPID)
+	router.GET("/suppliers/pid/napproved/:pid", handlers.GetSupplierByPPID)
+	router.GET("/suppliers/email/:email", handlers.GetSupplierByEmail)
+	router.PUT("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.UpdateSupplier)
+	router.DELETE("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.DeleteSupplier)
 
 	//items routes
-	router.GET("/items", getItems)
-	router.GET("/items/supplier/:supplierPid", getItemsBySupplier)
-	router.GET("/items/material/:materialId", getItemsByMaterial)
-	router.POST("/items", auth.RequireOwnership("item"), createItem)
-	router.PUT("/items/:id", auth.RequireOwnership("item"), updateItem)
-	router.DELETE("/items/:id", auth.RequireOwnership("item"), deleteItem)
+	router.GET("/items", handlers.GetItems)
+	router.GET("/items/supplier/:supplierPid", handlers.GetItemsBySupplier)
+	router.GET("/items/material/:materialId", handlers.GetItemsByMaterial)
+	router.POST("/items", auth.RequireOwnership("item"), handlers.CreateItem)
+	router.PUT("/items/:id", auth.RequireOwnership("item"), handlers.UpdateItem)
+	router.DELETE("/items/:id", auth.RequireOwnership("item"), handlers.DeleteItem)
 
-	router.POST("/paymentRecords", auth.RequireOwnership("paymentRecord"), createPaymentRecord)
-	router.GET("/paymentRecords", getPaymentRecords)
-	router.GET("/paymentRecords/:id", getPaymentRecordByID)
-	router.PUT("/paymentRecords/:id", auth.RequireOwnership("paymentRecord"), updatePaymentRecord)
-	router.DELETE("/paymentRecords/:id", auth.RequireOwnership("paymentRecord"), deletePaymentRecord)
+	router.POST("/paymentRecords",auth.RequireRoles("admin") , handlers.CreatePaymentRecord)
+	router.GET("/paymentRecords",auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecords)
+	router.GET("/paymentRecords/:id",auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecordByID)
+	router.PUT("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.UpdatePaymentRecord)
+	router.DELETE("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.DeletePaymentRecord)
 
 	// router.GET("/items/material/:materialId", getItemsByMaterialID)
 	handlers.InitProfessionalCollections(client.Database(dbName))
@@ -211,9 +212,12 @@ func AuthMiddleware() gin.HandlerFunc {
 		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 			token := strings.TrimPrefix(authHeader, "Bearer ")
 
+			log.Println("Token found: ", token)
+
 			roles, userID, err := auth.ParseJWT(token)
 			if err != nil {
 				// Invalid token
+				log.Println("Invalid Token can not set roles")
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "validation failed"})
 				return
 			}
@@ -224,6 +228,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// No token — proceed (public access)
+		log.Println("No token found. Proceed with public access")
 		c.Next()
 	}
 }
