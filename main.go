@@ -119,9 +119,9 @@ func main() {
 	router.PUT("/items/:id", auth.RequireOwnership("item"), handlers.UpdateItem)
 	router.DELETE("/items/:id", auth.RequireOwnership("item"), handlers.DeleteItem)
 
-	router.POST("/paymentRecords",auth.RequireRoles("admin") , handlers.CreatePaymentRecord)
-	router.GET("/paymentRecords",auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecords)
-	router.GET("/paymentRecords/:id",auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecordByID)
+	router.POST("/paymentRecords", auth.RequireRoles("admin"), handlers.CreatePaymentRecord)
+	router.GET("/paymentRecords", auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecords)
+	router.GET("/paymentRecords/:id", auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecordByID)
 	router.PUT("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.UpdatePaymentRecord)
 	router.DELETE("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.DeletePaymentRecord)
 
@@ -212,7 +212,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 			token := strings.TrimPrefix(authHeader, "Bearer ")
 
-			log.Println("Token found: ", token)
+			//log.Println("Token found: ", token)
 
 			roles, userID, err := auth.ParseJWT(token)
 			if err != nil {
@@ -225,10 +225,10 @@ func AuthMiddleware() gin.HandlerFunc {
 			// Valid token: set values
 			c.Set("userID", userID)
 			c.Set("roles", roles)
+		} else {
+			// No token — proceed (public access)
+			log.Println("No token found. Proceed with public access")
 		}
-
-		// No token — proceed (public access)
-		log.Println("No token found. Proceed with public access")
 		c.Next()
 	}
 }
