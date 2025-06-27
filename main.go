@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"material-api/email"
 	"material-api/handlers"
 )
 
@@ -55,7 +56,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	// Initialize email service
+	if err := email.InitEmailService(); err != nil {
+		log.Printf("Warning: Email service initialization failed: %v", err)
+		log.Println("Email functionality will be disabled")
+	} else {
+		log.Println("Email service initialized successfully")
+	}
 	// Select database & collection
 	dbName := os.Getenv("DB_NAME")
 	collectionName := os.Getenv("COLLECTION_NAME1")
@@ -141,6 +148,7 @@ func main() {
 	router.GET("/projects/:id", handlers.GetProjectByID)                 // Get a project by ID
 	router.PUT("/projects/:id", handlers.UpdateProject)                  // Update a project
 	router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
+	email.RegisterRoutes(router)
 	// Start the server
 	port := os.Getenv("PORT")
 	println("Server running on port " + port)
