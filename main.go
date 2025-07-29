@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -85,12 +86,16 @@ func main() {
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // Change to your frontend URL
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "api-secert"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	router.Use(func(c *gin.Context) {
+		fmt.Printf("[GIN] %s %s", c.Request.Method, c.Request.URL.Path)
+		c.Next()
+	})
 	router.GET("/search", searchMaterials)
 	router.GET("/materials", getMaterials)
 	router.GET("/materials/:id", getMaterialByID)
@@ -150,6 +155,10 @@ func main() {
 	router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
 	email.RegisterRoutes(router)
 	// Start the server
+	router.POST("/test-post", func(c *gin.Context) {
+		fmt.Println("TEST POST route hit!")
+		c.JSON(200, gin.H{"message": "POST working"})
+	})
 	port := os.Getenv("PORT")
 	println("Server running on port " + port)
 	router.Run(":" + port)

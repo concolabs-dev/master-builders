@@ -581,7 +581,7 @@ func createSupplier(c *gin.Context) {
 	paymentRecord := model.PaymentRecord{
 		ID:          primitive.NewObjectID(),
 		SupplierPID: supplier.PID,
-		Approved:    false,
+		Approved:    true,
 		Payments:    []model.Payment{}, // Empty payments list.
 		Deleted:     false,
 	}
