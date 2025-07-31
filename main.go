@@ -147,12 +147,22 @@ func main() {
 	router.DELETE("/professionals/:id", handlers.DeleteProfessional)
 	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
 
-	router.POST("/projects", handlers.CreateProject)                     // Create a new project
-	router.GET("/projects", handlers.GetProjects)                        // Get all projects
-	router.GET("/projects/professional/:pid", handlers.GetProjectsByPID) // Get projects by professional PID
-	router.GET("/projects/:id", handlers.GetProjectByID)                 // Get a project by ID
-	router.PUT("/projects/:id", handlers.UpdateProject)                  // Update a project
-	router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
+	// router.POST("/projects", handlers.CreateProject)                     // Create a new project
+	// router.GET("/projects", handlers.GetProjects)                        // Get all projects
+	// router.GET("/projects/professional/:pid", handlers.GetProjectsByPID) // Get projects by professional PID
+	// router.GET("/projects/:id", handlers.GetProjectByID)                 // Get a project by ID
+	// router.PUT("/projects/:id", handlers.UpdateProject)                  // Update a project
+	// router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
+
+	router.POST("/projects", handlers.CreateProject)                                    // Create a new project
+	router.GET("/projects", handlers.GetProjects)                                       // Get all projects
+	router.GET("/projects/filter", handlers.GetProjectsWithFilters)                     // Get projects with filters
+	router.GET("/projects/search", handlers.SearchProjects)                             // Search projects
+	router.GET("/projects/with-professional", handlers.GetProjectsWithProfessionalInfo) // Get projects with professional info
+	router.GET("/projects/professional/:pid", handlers.GetProjectsByPID)                // Get projects by professional PID
+	router.GET("/projects/:id", handlers.GetProjectByID)                                // Get a project by ID
+	router.PUT("/projects/:id", handlers.UpdateProject)                                 // Update a project
+	router.DELETE("/projects/:id", handlers.DeleteProject)                              // Delete a project
 	email.RegisterRoutes(router)
 	// Start the server
 	router.POST("/test-post", func(c *gin.Context) {
