@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"material-api/auth"
 	"material-api/db"
 	"material-api/model"
 )
@@ -588,6 +589,18 @@ func CreateSupplier(c *gin.Context) {
 	_, err = db.PaymentRecordCollection.InsertOne(ctx, paymentRecord)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Supplier created but failed to create payment record"})
+		return
+	}
+
+	token, err := auth.GetManagementToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get management token"})
+		return
+	}
+
+	err = auth.AssignRole(supplier.PID, "rol_TqcxYvYBV55GcNJm", token)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Supplier created but failed to assign Auth0 role"})
 		return
 	}
 

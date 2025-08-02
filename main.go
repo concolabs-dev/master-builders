@@ -36,7 +36,7 @@ func main() {
 		log.Println("INFO: Running in PRODUCTION mode. Authentication and Backend API checks are ENABLED.")
 	}
 
-	jwksURL := os.Getenv("AUT0_JWKS_URL")
+	jwksURL := os.Getenv("AUTH0_JWKS_URL")
 	// Initialize JWKS once
 	if err := auth.InitializeJWKS(jwksURL); err != nil {
 		log.Fatalf("Failed to initialize JWKS: %v", err)
