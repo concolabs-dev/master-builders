@@ -9,22 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 
 	// Import your models package or adjust as needed
+	"material-api/auth"
+	"material-api/db"
 	"material-api/model"
 )
-
-var professionalCollection *mongo.Collection
-var professionalPaymentRecordCollection *mongo.Collection
-var projectCollection *mongo.Collection
-
-// InitProfessionalCollections initializes the collections for professionals
-func InitProfessionalCollections(database *mongo.Database) {
-	professionalCollection = database.Collection("professionals")
-	professionalPaymentRecordCollection = database.Collection("professional_payment_records")
-	projectCollection = database.Collection("projects")
-}
 
 // CreateProfessional creates a new professional and adds a payment record with Approved=false and Deleted=false
 func CreateProfessional(c *gin.Context) {
@@ -60,7 +50,7 @@ func CreateProfessional(c *gin.Context) {
 	defer cancel()
 
 	// Insert the professional into the database
-	_, err := professionalCollection.InsertOne(ctx, professional)
+	_, err := db.ProfessionalCollection.InsertOne(ctx, professional)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create professional"})
 		return
@@ -75,9 +65,22 @@ func CreateProfessional(c *gin.Context) {
 		Deleted:         false,
 	}
 
-	_, err = professionalPaymentRecordCollection.InsertOne(ctx, paymentRecord)
+	_, err = db.ProfessionalPaymentRecordCollection.InsertOne(ctx, paymentRecord)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Professional created but failed to create payment record"})
+		return
+	}
+
+	token, err := auth.GetManagementToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get management token"})
+		return
+	}
+
+	// TODO: replace correct id her and in supplier
+	err = auth.AssignRole(professional.PID, "rol_TqcxYvYBV55GcNJm", token)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Professional created but failed to assign Auth0 role"})
 		return
 	}
 
@@ -91,7 +94,7 @@ func GetProfessionals(c *gin.Context) {
 	defer cancel()
 
 	// Find all PaymentRecords that satisfy the condition
-	cursor, err := professionalPaymentRecordCollection.Find(ctx, bson.M{
+	cursor, err := db.ProfessionalPaymentRecordCollection.Find(ctx, bson.M{
 		"$or": []bson.M{
 			{"approved": true},
 			{"deleted": true},
@@ -114,7 +117,7 @@ func GetProfessionals(c *gin.Context) {
 	}
 
 	// Find professionals whose 'pid' is in the professionalPIDs list
-	professionalsCursor, err := professionalCollection.Find(ctx, bson.M{"pid": bson.M{"$in": professionalPIDs}})
+	professionalsCursor, err := db.ProfessionalCollection.Find(ctx, bson.M{"pid": bson.M{"$in": professionalPIDs}})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching professionals"})
 		return
@@ -146,7 +149,7 @@ func GetProfessionalByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = professionalCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&professional)
+	err = db.ProfessionalCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&professional)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Professional not found"})
 		return
@@ -183,7 +186,7 @@ func GetProfessionalByPID(c *gin.Context) {
 
 	// If a valid PaymentRecord exists, fetch the professional
 	var professional model.Professional
-	err := professionalCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&professional)
+	err := db.ProfessionalCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&professional)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Professional with PID %s not found", pid)})
 		return
@@ -200,7 +203,7 @@ func GetProfessionalByEmail(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := professionalCollection.FindOne(ctx, bson.M{"email": email}).Decode(&professional)
+	err := db.ProfessionalCollection.FindOne(ctx, bson.M{"email": email}).Decode(&professional)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Professional with email %s not found", email)})
 		return
@@ -231,7 +234,7 @@ func UpdateProfessional(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = professionalCollection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": updateData})
+	_, err = db.ProfessionalCollection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": updateData})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update professional"})
 		return
@@ -253,21 +256,21 @@ func DeleteProfessional(c *gin.Context) {
 
 	// First, get the professional to retrieve their PID
 	var professional model.Professional
-	err = professionalCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&professional)
+	err = db.ProfessionalCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&professional)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Professional not found"})
 		return
 	}
 
 	// Delete all projects associated with this professional's PID
-	_, err = projectCollection.DeleteMany(ctx, bson.M{"pid": professional.PID})
+	_, err = db.ProjectCollection.DeleteMany(ctx, bson.M{"pid": professional.PID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete associated projects"})
 		return
 	}
 
 	// Delete the professional
-	_, err = professionalCollection.DeleteOne(ctx, bson.M{"_id": objID})
+	_, err = db.ProfessionalCollection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete professional"})
 		return
@@ -282,7 +285,7 @@ func GetAllProfessionals(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := professionalCollection.Find(ctx, bson.M{})
+	cursor, err := db.ProfessionalCollection.Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching professionals"})
 		return
@@ -325,7 +328,7 @@ func CreateProject(c *gin.Context) {
 	// Insert the project into the database
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := projectCollection.InsertOne(ctx, project)
+	_, err := db.ProjectCollection.InsertOne(ctx, project)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create project"})
 		return
@@ -338,7 +341,7 @@ func GetProjects(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := projectCollection.Find(ctx, bson.M{})
+	cursor, err := db.ProjectCollection.Find(ctx, bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -355,6 +358,7 @@ func GetProjects(c *gin.Context) {
 
 	c.JSON(http.StatusOK, projects)
 }
+
 func GetProjectsByPID(c *gin.Context) {
 	pid := c.Param("pid")
 
@@ -362,7 +366,7 @@ func GetProjectsByPID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := projectCollection.Find(ctx, bson.M{"pid": pid})
+	cursor, err := db.ProjectCollection.Find(ctx, bson.M{"pid": pid})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
@@ -379,6 +383,7 @@ func GetProjectsByPID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, projects)
 }
+
 func GetProjectByID(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
@@ -391,7 +396,7 @@ func GetProjectByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = projectCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&project)
+	err = db.ProjectCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&project)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		return
@@ -399,6 +404,7 @@ func GetProjectByID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, project)
 }
+
 func UpdateProject(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
@@ -420,7 +426,7 @@ func UpdateProject(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": updateData}
-	_, err = projectCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	_, err = db.ProjectCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update project"})
 		return
@@ -428,6 +434,7 @@ func UpdateProject(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Project updated successfully"})
 }
+
 func DeleteProject(c *gin.Context) {
 	idParam := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
@@ -439,7 +446,7 @@ func DeleteProject(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = projectCollection.DeleteOne(ctx, bson.M{"_id": objID})
+	_, err = db.ProjectCollection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete project"})
 		return
@@ -494,7 +501,7 @@ func GetProjectsWithFilters(c *gin.Context) {
 			}},
 		}
 
-		cursor, err := projectCollection.Aggregate(ctx, pipeline)
+		cursor, err := db.ProjectCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during aggregation"})
 			return
@@ -507,7 +514,7 @@ func GetProjectsWithFilters(c *gin.Context) {
 		}
 	} else {
 		// Simple find without company type filter
-		cursor, err := projectCollection.Find(ctx, filter)
+		cursor, err := db.ProjectCollection.Find(ctx, filter)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 			return
@@ -560,7 +567,7 @@ func SearchProjects(c *gin.Context) {
 		filter["type"] = bson.M{"$regex": projectType, "$options": "i"}
 	}
 
-	cursor, err := projectCollection.Find(ctx, filter)
+	cursor, err := db.ProjectCollection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during search"})
 		return
@@ -585,7 +592,6 @@ func SearchProjects(c *gin.Context) {
 	})
 }
 
-// GetProjectsWithProfessionalInfo returns projects with their associated professional information
 // GetProjectsWithProfessionalInfo returns projects with their associated professional information
 func GetProjectsWithProfessionalInfo(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -664,7 +670,7 @@ func GetProjectsWithProfessionalInfo(c *gin.Context) {
 		},
 	})
 
-	cursor, err := projectCollection.Aggregate(ctx, pipeline)
+	cursor, err := db.ProjectCollection.Aggregate(ctx, pipeline)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during aggregation"})
 		return

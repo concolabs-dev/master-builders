@@ -74,6 +74,9 @@ func main() {
 	db.SupplierCollection = client.Database(os.Getenv("DB_NAME")).Collection("suppliers")
 	db.ItemCollection = client.Database(os.Getenv("DB_NAME")).Collection("items")
 	db.PaymentRecordCollection = client.Database(os.Getenv("DB_NAME")).Collection("payments")
+	db.ProfessionalCollection = client.Database(dbName).Collection("professionals")
+	db.ProfessionalPaymentRecordCollection = client.Database(dbName).Collection("professional_payment_records")
+	db.ProjectCollection = client.Database(dbName).Collection("projects")
 	// testMaterials()
 	go startExchangeRateUpdater()
 	// Set up the Gin router
@@ -137,16 +140,13 @@ func main() {
 	router.PUT("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.UpdatePaymentRecord)
 	router.DELETE("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.DeletePaymentRecord)
 
-	// router.GET("/items/material/:materialId", getItemsByMaterialID)
-	handlers.InitProfessionalCollections(client.Database(dbName))
-
-	router.POST("/professionals", handlers.CreateProfessional)
+	router.POST("/professionals", auth.RequireOwnership("professional"), handlers.CreateProfessional)
 	router.GET("/professionals", handlers.GetAllProfessionals)
 	router.GET("/professionals/:id", handlers.GetProfessionalByID)
 	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
 	router.GET("/professionals/email/:email", handlers.GetProfessionalByEmail)
-	router.PUT("/professionals/:id", handlers.UpdateProfessional)
-	router.DELETE("/professionals/:id", handlers.DeleteProfessional)
+	router.PUT("/professionals/:id", auth.RequireOwnership("professional"), handlers.UpdateProfessional)
+	router.DELETE("/professionals/:id", auth.RequireOwnership("professional"), handlers.DeleteProfessional)
 	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
 
 	// router.POST("/projects", handlers.CreateProject)                     // Create a new project
