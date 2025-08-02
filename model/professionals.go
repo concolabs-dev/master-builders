@@ -34,3 +34,13 @@ type ProfessionalPaymentRecord struct {
 	Payments        []Payment          `bson:"payments" json:"payments"`
 	Deleted         bool               `bson:"deleted" json:"deleted"`
 }
+type Project struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Name        string             `bson:"name" json:"name"`
+	Type        string             `bson:"type" json:"type"`
+	Location    string             `bson:"location" json:"location"`
+	Year        string             `bson:"year" json:"year"`
+	Description string             `bson:"description" json:"description"`
+	Images      []string           `bson:"images" json:"images"`
+	PID         string             `bson:"pid" json:"pid"` // PID of the associated Professional
+}

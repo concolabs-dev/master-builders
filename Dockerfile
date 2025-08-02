@@ -11,7 +11,6 @@ RUN go mod download
 COPY . .
 
 # Build the application
-# Ensure your main package is correctly referenced, e.g., ./cmd/server/main.go or just ./ if main.go is in the root
 RUN CGO_ENABLED=0 go build -o /master-builders-app .
 
 # Stage 2: Create the final lightweight image
@@ -22,13 +21,11 @@ WORKDIR /app
 # Copy the built application from the builder stage
 COPY --from=builder /master-builders-app /app/master-builders-app
 
-# Copy the .env file into the working directory of the application.
-# The Go app uses godotenv.Load() and will look for .env here.
-# Environment variables set in docker-compose.yml will override these if godotenv doesn't overwrite.
+# Copy the .env file
 COPY .env /app/.env
 
-# The application will listen on the PORT specified in the .env file (e.g., 8040)
-# EXPOSE 8040 (This is metadata; actual port mapping is in docker-compose.yml)
+# Copy templates to the correct location
+COPY --from=builder /app/email/templates /app/templates
 
 # Command to run the application
 CMD ["/app/master-builders-app"]

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Receipt - Build Market LK</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+            background-color: #2c3e50;
+            color: white;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .receipt-details {
+            margin-bottom: 30px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .receipt-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .receipt-details td {
+            padding: 8px;
+        }
+        .payment-details {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .success-message {
+            background-color: #dff0d8;
+            color: #3c763d;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid #d6e9c6;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #777;
+            border-top: 1px solid #eee;
+            background-color: #f9f9f9;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .social-links {
+            margin-top: 15px;
+        }
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #3498db;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Build Market LK</h1>
+            <h2>Payment Receipt</h2>
+        </div>
+        <div class="content">
+            <div class="success-message">
+                <h3>Payment Successful!</h3>
+                <p>Thank you for your payment. Your transaction has been completed successfully.</p>
+            </div>
+            
+            <div class="receipt-details">
+                <table>
+                    <tr>
+                        <td><strong>Receipt No:</strong></td>
+                        <td>{{.ReceiptNumber}}</td>
+                        <td><strong>Date:</strong></td>
+                        <td>{{.PaymentDate}}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Client:</strong></td>
+                        <td>{{.ClientName}}</td>
+                        <td><strong>Invoice No:</strong></td>
+                        <td>{{.InvoiceNumber}}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="payment-details">
+                <h3>Payment Details</h3>
+                <p><strong>Amount Paid:</strong> {{.AmountPaid}}</p>
+                <p><strong>Payment Method:</strong> {{.PaymentMethod}}</p>
+                <p><strong>Transaction ID:</strong> {{.TransactionID}}</p>
+                <p><strong>Payment Status:</strong> <span style="color: #4CAF50; font-weight: bold;">{{.PaymentStatus}}</span></p>
+            </div>
+            
+            <p>This receipt confirms that your payment has been received. Please keep this for your records.</p>
+            
+            <p>If you have any questions about this payment, please contact our support team.</p>
+            
+            <a href="{{.AccountLink}}" class="button">View Your Account</a>
+        </div>
+        <div class="footer">
+            <p>© 2025 Build Market LK. All rights reserved.</p>
+            <p>This is an automated message, please do not reply directly to this email.</p>
+            <div class="social-links">
+                <a href="#">Facebook</a> | 
+                <a href="#">Twitter</a> | 
+                <a href="#">Instagram</a>
+            </div>
+            <p>Contact: <a href="mailto:info@buildmarketlk.com">info@buildmarketlk.com</a></p>
+        </div>
+    </div>
+</body>
+</html>

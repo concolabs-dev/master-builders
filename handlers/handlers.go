@@ -15,6 +15,7 @@ import (
 
 	"material-api/auth"
 	"material-api/db"
+	"material-api/email"
 	"material-api/model"
 )
 
@@ -582,7 +583,7 @@ func CreateSupplier(c *gin.Context) {
 	paymentRecord := model.PaymentRecord{
 		ID:          primitive.NewObjectID(),
 		SupplierPID: supplier.PID,
-		Approved:    false,
+		Approved:    true,
 		Payments:    []model.Payment{}, // Empty payments list.
 		Deleted:     false,
 	}
@@ -591,7 +592,17 @@ func CreateSupplier(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Supplier created but failed to create payment record"})
 		return
 	}
-
+	go func() {
+		err := email.SendGeneralMessage(
+			[]string{supplier.Email},
+			"Welcome to BuildMarket - Your Registration is Complete",
+			"Thank you for registering with BuildMarket! Your supplier account has been created successfully. Our team will review your details shortly. You'll receive another notification once your account is approved.",
+			supplier.BusinessName,
+		)
+		if err != nil {
+			log.Printf("Failed to send welcome email to %s: %v", supplier.Email, err)
+		}
+	}()
 	token, err := auth.GetManagementToken()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get management token"})
