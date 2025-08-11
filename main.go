@@ -16,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"material-api/handlers"
+	"material-api/controllers"
 )
 
 var (
@@ -25,6 +26,7 @@ var (
 	supplierCollection      *mongo.Collection
 	itemCollection          *mongo.Collection
 	paymentRecordCollection *mongo.Collection
+	professionalPaymentRecordCollection *mongo.Collection
 )
 
 func main() {
@@ -66,6 +68,7 @@ func main() {
 	supplierCollection = client.Database(os.Getenv("DB_NAME")).Collection("suppliers")
 	itemCollection = client.Database(os.Getenv("DB_NAME")).Collection("items")
 	paymentRecordCollection = client.Database(os.Getenv("DB_NAME")).Collection("payments")
+	professionalPaymentRecordCollection = client.Database(os.Getenv("DB_NAME")).Collection("professionalPaymentRecord")
 	// testMaterials()
 	go startExchangeRateUpdater()
 	// Set up the Gin router
@@ -126,7 +129,7 @@ func main() {
 	// router.GET("/items/material/:materialId", getItemsByMaterialID)
 	handlers.InitProfessionalCollections(client.Database(dbName))
 
-	router.POST("/professionals", handlers.CreateProfessional)
+	
 	router.GET("/professionals", handlers.GetProfessionals)
 	router.GET("/professionals/:id", handlers.GetProfessionalByID)
 	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
@@ -134,6 +137,8 @@ func main() {
 	router.PUT("/professionals/:id", handlers.UpdateProfessional)
 	router.DELETE("/professionals/:id", handlers.DeleteProfessional)
 	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
+
+	controllers.RegisterPaymentRoutes(router)
 
 	// Start the server
 	port := os.Getenv("PORT")

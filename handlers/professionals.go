@@ -278,3 +278,35 @@ func GetAllProfessionals(c *gin.Context) {
 
 	c.JSON(http.StatusOK, professionals)
 }
+
+func UpdateProfessionalPaymentRecordApprovedStatus(id string, approved bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": bson.M{"approved": approved}}
+	result, err := professionalPaymentRecordCollection.UpdateOne(ctx, bson.M{"professional_pid": id}, update)
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment status")
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("no professional payment record found with ID %s", id)
+	}
+
+	return nil
+}
+
+func AppendPaymentToProfessionalPaymentRecord(id string, payment model.Payment) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$push": bson.M{"payments": payment}}
+	result, err := professionalPaymentRecordCollection.UpdateOne(ctx, bson.M{"professional_pid": id}, update)
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment recrod")
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("no professional payment record found with ID %s", id)
+	}
+
+	return nil
+}
