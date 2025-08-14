@@ -12,7 +12,7 @@ import (
 
 // Claims defines your JWT payload structure.
 type CustomClaims struct {
-	Roles []string `json:"https://dev-risinu-test.com/roles"`
+	Roles []string `json:"https://build-market.com/api/v2/roles"`
 	jwt.RegisteredClaims
 }
 

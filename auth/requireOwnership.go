@@ -18,7 +18,7 @@ import (
 )
 
 // Helper to read and store body for reuse (use this because shouldbindjson will drain the body and then we can not use it inside handlers)
-// TODO -  better solution 
+// TODO -  better solution
 
 func readAndStoreBody(c *gin.Context) ([]byte, error) {
 	bodyBytes, err := ioutil.ReadAll(c.Request.Body)
@@ -42,6 +42,61 @@ func RequireOwnership(resourceType string) gin.HandlerFunc {
 		isOwner := false
 
 		switch resourceType {
+
+		case "professional":
+			log.Println("inside the professional case")
+
+			if method == http.MethodPost {
+				// Use helper to read and store body
+				bodyBytes, err := readAndStoreBody(c)
+				if err != nil {
+					log.Println("Failed to read request body:", err)
+					c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+					return
+				}
+				var professional model.Professional
+
+				if err := json.Unmarshal(bodyBytes, &professional); err != nil {
+					log.Println("Invalid professional data in POST /professional:", err)
+					c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid professional data"})
+					return
+				}
+
+				if professional.PID != userID {
+					log.Printf("professional PID (%s) does not match userID (%s) in POST /professional", professional.PID, userID)
+					c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not the owner of professional"})
+					return
+				}
+
+				isOwner = true
+
+			} else {
+				resourceID := c.Param("id") // This is the item's ObjectID
+				itemObjID, err := primitive.ObjectIDFromHex(resourceID)
+
+				if err != nil {
+					log.Printf("Invalid item ID in professional case: %s, error: %v", resourceID, err)
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+					return
+				}
+
+				// Fetch the item from the database
+				var professional model.Professional
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				err = db.ProfessionalCollection.FindOne(ctx, bson.M{"_id": itemObjID}).Decode(&professional)
+				if err != nil {
+					log.Printf("Item not found in professional case: %s, error: %v", resourceID, err)
+					c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
+					return
+				}
+
+				isOwner = professional.PID == userID
+				if !isOwner {
+					log.Printf("User %s is not the owner of item %s (owner: %s) in professional case", userID, resourceID, professional.PID)
+				}
+			}
 
 		case "supplier":
 

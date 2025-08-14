@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 	"material-api/auth"
 	"material-api/db"
+	"material-api/email"
 	"material-api/handlers"
 )
 
@@ -55,7 +57,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	// Initialize email service
+	if err := email.InitEmailService(); err != nil {
+		log.Printf("Warning: Email service initialization failed: %v", err)
+		log.Println("Email functionality will be disabled")
+	} else {
+		log.Println("Email service initialized successfully")
+	}
 	// Select database & collection
 	dbName := os.Getenv("DB_NAME")
 	collectionName := os.Getenv("COLLECTION_NAME1")
@@ -66,6 +74,9 @@ func main() {
 	db.SupplierCollection = client.Database(os.Getenv("DB_NAME")).Collection("suppliers")
 	db.ItemCollection = client.Database(os.Getenv("DB_NAME")).Collection("items")
 	db.PaymentRecordCollection = client.Database(os.Getenv("DB_NAME")).Collection("payments")
+	db.ProfessionalCollection = client.Database(dbName).Collection("professionals")
+	db.ProfessionalPaymentRecordCollection = client.Database(dbName).Collection("professional_payment_records")
+	db.ProjectCollection = client.Database(dbName).Collection("projects")
 	// testMaterials()
 	go startExchangeRateUpdater()
 	// Set up the Gin router
@@ -79,12 +90,16 @@ func main() {
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // Change to your frontend URL
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "api-secert"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	router.Use(func(c *gin.Context) {
+		fmt.Printf("[GIN] %s %s", c.Request.Method, c.Request.URL.Path)
+		c.Next()
+	})
 
 	router.GET("/search", handlers.SearchMaterials)
 	router.GET("/materials", handlers.GetMaterials)
@@ -125,19 +140,37 @@ func main() {
 	router.PUT("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.UpdatePaymentRecord)
 	router.DELETE("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.DeletePaymentRecord)
 
-	// router.GET("/items/material/:materialId", getItemsByMaterialID)
-	handlers.InitProfessionalCollections(client.Database(dbName))
-
-	router.POST("/professionals", handlers.CreateProfessional)
-	router.GET("/professionals", handlers.GetProfessionals)
+	router.POST("/professionals", auth.RequireOwnership("professional"), handlers.CreateProfessional)
+	router.GET("/professionals", handlers.GetAllProfessionals)
 	router.GET("/professionals/:id", handlers.GetProfessionalByID)
 	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
 	router.GET("/professionals/email/:email", handlers.GetProfessionalByEmail)
-	router.PUT("/professionals/:id", handlers.UpdateProfessional)
-	router.DELETE("/professionals/:id", handlers.DeleteProfessional)
+	router.PUT("/professionals/:id", auth.RequireOwnership("professional"), handlers.UpdateProfessional)
+	router.DELETE("/professionals/:id", auth.RequireOwnership("professional"), handlers.DeleteProfessional)
 	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
 
+	// router.POST("/projects", handlers.CreateProject)                     // Create a new project
+	// router.GET("/projects", handlers.GetProjects)                        // Get all projects
+	// router.GET("/projects/professional/:pid", handlers.GetProjectsByPID) // Get projects by professional PID
+	// router.GET("/projects/:id", handlers.GetProjectByID)                 // Get a project by ID
+	// router.PUT("/projects/:id", handlers.UpdateProject)                  // Update a project
+	// router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
+
+	router.POST("/projects", handlers.CreateProject)                                    // Create a new project
+	router.GET("/projects", handlers.GetProjects)                                       // Get all projects
+	router.GET("/projects/filter", handlers.GetProjectsWithFilters)                     // Get projects with filters
+	router.GET("/projects/search", handlers.SearchProjects)                             // Search projects
+	router.GET("/projects/with-professional", handlers.GetProjectsWithProfessionalInfo) // Get projects with professional info
+	router.GET("/projects/professional/:pid", handlers.GetProjectsByPID)                // Get projects by professional PID
+	router.GET("/projects/:id", handlers.GetProjectByID)                                // Get a project by ID
+	router.PUT("/projects/:id", handlers.UpdateProject)                                 // Update a project
+	router.DELETE("/projects/:id", handlers.DeleteProject)                              // Delete a project
+	email.RegisterRoutes(router)
 	// Start the server
+	router.POST("/test-post", func(c *gin.Context) {
+		fmt.Println("TEST POST route hit!")
+		c.JSON(200, gin.H{"message": "POST working"})
+	})
 	port := os.Getenv("PORT")
 	println("Server running on port " + port)
 	router.Run(":" + port)
