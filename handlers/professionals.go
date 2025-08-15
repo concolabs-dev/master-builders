@@ -16,6 +16,17 @@ import (
 	"material-api/model"
 )
 
+// var professionalCollection *mongo.Collection
+// var professionalPaymentRecordCollection *mongo.Collection
+// var projectCollection *mongo.Collection
+
+// // InitProfessionalCollections initializes the collections for professionals
+// func InitProfessionalCollections(database *mongo.Database) {
+// 	professionalCollection = database.Collection("professionals")
+// 	professionalPaymentRecordCollection = database.Collection("professional_payment_records")
+// 	projectCollection = database.Collection("projects")
+// }
+
 // CreateProfessional creates a new professional and adds a payment record with Approved=false and Deleted=false
 func CreateProfessional(c *gin.Context) {
 	var professional model.Professional
@@ -721,7 +732,7 @@ func SearchProfessionals(c *gin.Context) {
 		filter["address"] = bson.M{"$regex": location, "$options": "i"}
 	}
 
-	cursor, err := professionalCollection.Find(ctx, filter)
+	cursor, err := db.ProfessionalCollection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during search"})
 		return
@@ -804,7 +815,7 @@ func GetProfessionalsWithFilters(c *gin.Context) {
 		filter["services_offered"] = bson.M{"$regex": service, "$options": "i"}
 	}
 
-	cursor, err := professionalCollection.Find(ctx, filter)
+	cursor, err := db.ProfessionalCollection.Find(ctx, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during filtering"})
 		return
@@ -831,7 +842,7 @@ func GetProfessionalTypes(c *gin.Context) {
 	defer cancel()
 
 	// Use MongoDB's distinct operation to get unique company types
-	companyTypes, err := professionalCollection.Distinct(ctx, "company_type", bson.M{})
+	companyTypes, err := db.ProfessionalCollection.Distinct(ctx, "company_type", bson.M{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching professional types"})
 		return
