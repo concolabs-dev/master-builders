@@ -148,7 +148,9 @@ func main() {
 	router.PUT("/professionals/:id", auth.RequireOwnership("professional"), handlers.UpdateProfessional)
 	router.DELETE("/professionals/:id", auth.RequireOwnership("professional"), handlers.DeleteProfessional)
 	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
-
+	router.GET("/professionals/search", handlers.SearchProfessionals)         // Search professionals
+	router.GET("/professionals/filter", handlers.GetProfessionalsWithFilters) // Filter professionals
+	router.GET("/professionals/types", handlers.GetProfessionalTypes)         // Get all professional types
 	// router.POST("/projects", handlers.CreateProject)                     // Create a new project
 	// router.GET("/projects", handlers.GetProjects)                        // Get all projects
 	// router.GET("/projects/professional/:pid", handlers.GetProjectsByPID) // Get projects by professional PID

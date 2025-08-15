@@ -690,3 +690,163 @@ func GetProjectsWithProfessionalInfo(c *gin.Context) {
 
 	c.JSON(http.StatusOK, results)
 }
+
+// SearchProfessionals searches professionals by company name, description, specializations, and services offered
+func SearchProfessionals(c *gin.Context) {
+	searchQuery := c.Query("q")
+	if searchQuery == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query parameter 'q' is required"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Create a text search filter for multiple fields
+	filter := bson.M{
+		"$or": []bson.M{
+			{"company_name": bson.M{"$regex": searchQuery, "$options": "i"}},        // Case-insensitive search in company name
+			{"company_description": bson.M{"$regex": searchQuery, "$options": "i"}}, // Case-insensitive search in description
+			{"specializations": bson.M{"$regex": searchQuery, "$options": "i"}},     // Case-insensitive search in specializations array
+			{"services_offered": bson.M{"$regex": searchQuery, "$options": "i"}},    // Case-insensitive search in services offered array
+		},
+	}
+
+	// Optional: Add additional filters
+	if companyType := c.Query("company_type"); companyType != "" {
+		filter["company_type"] = bson.M{"$regex": companyType, "$options": "i"}
+	}
+
+	if location := c.Query("location"); location != "" {
+		filter["address"] = bson.M{"$regex": location, "$options": "i"}
+	}
+
+	cursor, err := professionalCollection.Find(ctx, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during search"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var professionals []model.Professional
+	if err = cursor.All(ctx, &professionals); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding professionals"})
+		return
+	}
+
+	// Return empty array instead of nil when no professionals are found
+	if professionals == nil {
+		professionals = []model.Professional{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"query":   searchQuery,
+		"count":   len(professionals),
+		"results": professionals,
+	})
+}
+
+// GetProfessionalsWithFilters returns professionals filtered by company type and other criteria
+func GetProfessionalsWithFilters(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Build filter based on query parameters
+	filter := bson.M{}
+
+	// Filter by company type (professional type)
+	if companyType := c.Query("company_type"); companyType != "" {
+		filter["company_type"] = bson.M{"$regex": companyType, "$options": "i"} // Case-insensitive match
+	}
+
+	// Filter by location/address
+	if location := c.Query("location"); location != "" {
+		filter["address"] = bson.M{"$regex": location, "$options": "i"}
+	}
+
+	// Filter by year founded (range filters)
+	if yearFrom := c.Query("year_from"); yearFrom != "" {
+		if filter["year_founded"] == nil {
+			filter["year_founded"] = bson.M{}
+		}
+		filter["year_founded"].(bson.M)["$gte"] = yearFrom
+	}
+
+	if yearTo := c.Query("year_to"); yearTo != "" {
+		if filter["year_founded"] == nil {
+			filter["year_founded"] = bson.M{}
+		}
+		filter["year_founded"].(bson.M)["$lte"] = yearTo
+	}
+
+	// Filter by number of employees (range filters)
+	if employeesMin := c.Query("employees_min"); employeesMin != "" {
+		if filter["number_of_employees"] == nil {
+			filter["number_of_employees"] = bson.M{}
+		}
+		filter["number_of_employees"].(bson.M)["$gte"] = employeesMin
+	}
+
+	if employeesMax := c.Query("employees_max"); employeesMax != "" {
+		if filter["number_of_employees"] == nil {
+			filter["number_of_employees"] = bson.M{}
+		}
+		filter["number_of_employees"].(bson.M)["$lte"] = employeesMax
+	}
+
+	// Filter by specialization
+	if specialization := c.Query("specialization"); specialization != "" {
+		filter["specializations"] = bson.M{"$regex": specialization, "$options": "i"}
+	}
+
+	// Filter by service offered
+	if service := c.Query("service"); service != "" {
+		filter["services_offered"] = bson.M{"$regex": service, "$options": "i"}
+	}
+
+	cursor, err := professionalCollection.Find(ctx, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during filtering"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var professionals []model.Professional
+	if err = cursor.All(ctx, &professionals); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding professionals"})
+		return
+	}
+
+	// Return empty array instead of nil when no professionals are found
+	if professionals == nil {
+		professionals = []model.Professional{}
+	}
+
+	c.JSON(http.StatusOK, professionals)
+}
+
+// GetProfessionalTypes returns all unique company types (professional types) in the database
+func GetProfessionalTypes(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Use MongoDB's distinct operation to get unique company types
+	companyTypes, err := professionalCollection.Distinct(ctx, "company_type", bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching professional types"})
+		return
+	}
+
+	// Filter out empty values
+	var validTypes []interface{}
+	for _, ct := range companyTypes {
+		if str, ok := ct.(string); ok && str != "" {
+			validTypes = append(validTypes, str)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"professional_types": validTypes,
+		"count":              len(validTypes),
+	})
+}
