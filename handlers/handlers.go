@@ -754,14 +754,39 @@ func DeleteSupplier(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid supplier ID"})
 		return
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = db.SupplierCollection.DeleteOne(ctx, bson.M{"_id": objID})
+
+	// Load supplier to get PID
+	var supplier model.Supplier
+	if err := db.SupplierCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&supplier); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Supplier not found"})
+		return
+	}
+
+	// Delete items belonging to this supplier
+	itemsRes, err := db.ItemCollection.DeleteMany(ctx, bson.M{"supplierPid": supplier.PID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete supplier items"})
+		return
+	}
+
+	// Delete supplier
+	suppRes, err := db.SupplierCollection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete supplier"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Supplier deleted successfully"})
+	if suppRes.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Supplier not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "Supplier and items deleted successfully",
+		"deletedItems": itemsRes.DeletedCount,
+	})
 }
 
 // getItems retrieves all items.
