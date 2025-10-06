@@ -124,7 +124,7 @@ func main() {
 	router.GET("/suppliers/pid/napproved/:pid", handlers.GetSupplierByPPID)
 	router.GET("/suppliers/email/:email", handlers.GetSupplierByEmail)
 	router.PUT("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.UpdateSupplier)
-	router.DELETE("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.DeleteSupplier)
+	router.DELETE("/suppliers/:id", auth.RequireOwnershipOrRoles("supplier", "admin"), handlers.DeleteSupplier)
 
 	//items routes
 	router.GET("/items", handlers.GetItems)
@@ -146,7 +146,12 @@ func main() {
 	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
 	router.GET("/professionals/email/:email", handlers.GetProfessionalByEmail)
 	router.PUT("/professionals/:id", auth.RequireOwnership("professional"), handlers.UpdateProfessional)
-	router.DELETE("/professionals/:id", auth.RequireOwnership("professional"), handlers.DeleteProfessional)
+	// router.DELETE("/professionals/:id", auth.RequireOwnership("professional"), handlers.DeleteProfessional)
+	router.DELETE(
+		"/professionals/:id",
+		auth.RequireOwnershipOrRoles("professional", "admin"),
+		handlers.DeleteProfessional,
+	)
 	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
 	router.GET("/professionals/search", handlers.SearchProfessionals)         // Search professionals
 	router.GET("/professionals/filter", handlers.GetProfessionalsWithFilters) // Filter professionals
