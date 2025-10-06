@@ -168,8 +168,7 @@ func main() {
 	router.PUT("/projects/:id", handlers.UpdateProject)                                 // Update a project
 	router.DELETE("/projects/:id", handlers.DeleteProject)                              // Delete a project
 
-	router.POST("/stripe/checkout", handlers.PaymentHandler)
-	router.POST("/stripe/webhook", handlers.HandleWebhook)
+	router.POST("/webhook", handlers.HandleWebhook)
 
 	email.RegisterRoutes(router)
 	// Start the server
