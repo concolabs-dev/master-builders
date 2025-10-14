@@ -63,7 +63,10 @@ func CreateProfessional(c *gin.Context) {
 	// Insert the professional into the database
 	_, err := db.ProfessionalCollection.InsertOne(ctx, professional)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create professional"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to create professional",
+			"details": err.Error(),
+		})
 		return
 	}
 
@@ -82,7 +85,7 @@ func CreateProfessional(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Professional created but failed to create payment record"})
 		return
 	}
-
+	
 	token, err := auth.GetManagementToken()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get management token"})
