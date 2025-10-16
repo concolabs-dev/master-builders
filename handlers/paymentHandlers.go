@@ -149,68 +149,139 @@ func HandleWebhook(c *gin.Context) {
 	}
 
 	// 6) Route by event type
-	switch req.Type {
-	case "invoice.paid":
-		log.Printf("requestId=%s event=invoice.paid transactionId=%s userId=%s package=%s amount=%d", reqID, req.TransactionID, req.UserID, req.PackageName, req.Amount)
+	switch req.PackageName[:7] {
+	case "BML_SUP":
+		switch req.Type {
+		case "invoice.paid":
+			log.Printf("supplier requestId=%s event=invoice.paid transactionId=%s userId=%s package=%s amount=%d", reqID, req.TransactionID, req.UserID, req.PackageName, req.Amount)
 
-		paymentRecord, err := utils.CreatePaymentRecord(req.Amount)
-		if err != nil {
-			log.Printf("requestId=%s error=create_payment_record_failed detail=%v", reqID, err)
-			respondError(c, http.StatusInternalServerError, "create_payment_record_failed",
-				"Could not create payment record", err.Error())
+			paymentRecord, err := utils.CreatePaymentRecord(req.Amount)
+			if err != nil {
+				log.Printf("requestId=%s error=create_payment_record_failed detail=%v", reqID, err)
+				respondError(c, http.StatusInternalServerError, "create_payment_record_failed",
+					"Could not create payment record", err.Error())
+				return
+			}
+			log.Printf("supplier requestId=%s info=payment_record_created amount=%d", reqID, req.Amount)
+
+			if err := SetSupplierPaymentRecordPackageName(req.UserID, req.PackageName); err != nil {
+				log.Printf("requestId=%s error=set_package_failed userId=%s package=%s detail=%v", reqID, req.UserID, req.PackageName, err)
+				respondError(c, http.StatusInternalServerError, "set_package_failed",
+					"Could not set package name on payment record", err.Error())
+				return
+			}
+			log.Printf("supplier requestId=%s info=package_set userId=%s package=%s", reqID, req.UserID, req.PackageName)
+
+			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, true); err != nil {
+				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=true detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "approve_status_failed",
+					"Could not update approved status", err.Error())
+				return
+			}
+			log.Printf("supplier requestId=%s info=approved_status_updated userId=%s approved=true", reqID, req.UserID)
+
+			if err := AppendPaymentToSupplierPaymentRecord(req.UserID, paymentRecord); err != nil {
+				log.Printf("requestId=%s error=append_payment_failed userId=%s detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "append_payment_failed",
+					"Could not append payment to record", err.Error())
+				return
+			}
+			log.Printf("supplier requestId=%s info=payment_appended userId=%s", reqID, req.UserID)
+
+		case "invoice.payment_failed":
+			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "approve_status_failed",
+					"Could not update approved status", err.Error())
+				return
+			}
+			log.Printf("supplier requestId=%s event=invoice.payment_failed transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
+
+		case "transaction.status_updated":
+			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "approve_status_failed",
+					"Could not update approved status", err.Error())
+				return
+			}
+			log.Printf("supplier requestId=%s event=transaction.status_updated transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
+
+		default:
+			log.Printf("supplier requestId=%s error=unhandled_event_type type=%s", reqID, req.Type)
+			respondError(c, http.StatusBadRequest, "unhandled_event_type",
+				"Event type is not supported", gin.H{"type": req.Type})
 			return
 		}
-		log.Printf("requestId=%s info=payment_record_created amount=%d", reqID, req.Amount)
 
-		if err := SetProfessionalPaymentRecordPackageName(req.UserID, req.PackageName); err != nil {
-			log.Printf("requestId=%s error=set_package_failed userId=%s package=%s detail=%v", reqID, req.UserID, req.PackageName, err)
-			respondError(c, http.StatusInternalServerError, "set_package_failed",
-				"Could not set package name on payment record", err.Error())
+	case "BML_PRF":
+		switch req.Type {
+		case "invoice.paid":
+			log.Printf("requestId=%s event=invoice.paid transactionId=%s userId=%s package=%s amount=%d", reqID, req.TransactionID, req.UserID, req.PackageName, req.Amount)
+
+			paymentRecord, err := utils.CreatePaymentRecord(req.Amount)
+			if err != nil {
+				log.Printf("requestId=%s error=create_payment_record_failed detail=%v", reqID, err)
+				respondError(c, http.StatusInternalServerError, "create_payment_record_failed",
+					"Could not create payment record", err.Error())
+				return
+			}
+			log.Printf("requestId=%s info=payment_record_created amount=%d", reqID, req.Amount)
+
+			if err := SetProfessionalPaymentRecordPackageName(req.UserID, req.PackageName); err != nil {
+				log.Printf("requestId=%s error=set_package_failed userId=%s package=%s detail=%v", reqID, req.UserID, req.PackageName, err)
+				respondError(c, http.StatusInternalServerError, "set_package_failed",
+					"Could not set package name on payment record", err.Error())
+				return
+			}
+			log.Printf("requestId=%s info=package_set userId=%s package=%s", reqID, req.UserID, req.PackageName)
+
+			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, true); err != nil {
+				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=true detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "approve_status_failed",
+					"Could not update approved status", err.Error())
+				return
+			}
+			log.Printf("requestId=%s info=approved_status_updated userId=%s approved=true", reqID, req.UserID)
+
+			if err := AppendPaymentToProfessionalPaymentRecord(req.UserID, paymentRecord); err != nil {
+				log.Printf("requestId=%s error=append_payment_failed userId=%s detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "append_payment_failed",
+					"Could not append payment to record", err.Error())
+				return
+			}
+			log.Printf("requestId=%s info=payment_appended userId=%s", reqID, req.UserID)
+
+		case "invoice.payment_failed":
+			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "approve_status_failed",
+					"Could not update approved status", err.Error())
+				return
+			}
+			log.Printf("requestId=%s event=invoice.payment_failed transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
+
+		case "transaction.status_updated":
+			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
+				respondError(c, http.StatusInternalServerError, "approve_status_failed",
+					"Could not update approved status", err.Error())
+				return
+			}
+			log.Printf("requestId=%s event=transaction.status_updated transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
+
+		default:
+			log.Printf("requestId=%s error=unhandled_event_type type=%s", reqID, req.Type)
+			respondError(c, http.StatusBadRequest, "unhandled_event_type",
+				"Event type is not supported", gin.H{"type": req.Type})
 			return
 		}
-		log.Printf("requestId=%s info=package_set userId=%s package=%s", reqID, req.UserID, req.PackageName)
-
-		if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, true); err != nil {
-			log.Printf("requestId=%s error=approve_status_failed userId=%s approved=true detail=%v", reqID, req.UserID, err)
-			respondError(c, http.StatusInternalServerError, "approve_status_failed",
-				"Could not update approved status", err.Error())
-			return
-		}
-		log.Printf("requestId=%s info=approved_status_updated userId=%s approved=true", reqID, req.UserID)
-
-		if err := AppendPaymentToProfessionalPaymentRecord(req.UserID, paymentRecord); err != nil {
-			log.Printf("requestId=%s error=append_payment_failed userId=%s detail=%v", reqID, req.UserID, err)
-			respondError(c, http.StatusInternalServerError, "append_payment_failed",
-				"Could not append payment to record", err.Error())
-			return
-		}
-		log.Printf("requestId=%s info=payment_appended userId=%s", reqID, req.UserID)
-
-	case "invoice.payment_failed":
-		if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false); err != nil {
-			log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
-			respondError(c, http.StatusInternalServerError, "approve_status_failed",
-				"Could not update approved status", err.Error())
-			return
-		}
-		log.Printf("requestId=%s event=invoice.payment_failed transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
-
-	case "transaction.status_updated":
-		if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false); err != nil {
-			log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
-			respondError(c, http.StatusInternalServerError, "approve_status_failed",
-				"Could not update approved status", err.Error())
-			return
-		}
-		log.Printf("requestId=%s event=transaction.status_updated transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
-
 	default:
-		log.Printf("requestId=%s error=unhandled_event_type type=%s", reqID, req.Type)
-		respondError(c, http.StatusBadRequest, "unhandled_event_type",
-			"Event type is not supported", gin.H{"type": req.Type})
+		log.Printf("requestId=%s error=unhandled_package_type type=%s", reqID, req.Type)
+		respondError(c, http.StatusBadRequest, "unhandled_package_type",
+			"Package type is not supported", gin.H{"type": req.PackageName[:7]})
 		return
+	
 	}
-
 	// 7) Success (you can return a body if desired)
 	c.JSON(http.StatusOK, gin.H{
 		"status":    "ok",

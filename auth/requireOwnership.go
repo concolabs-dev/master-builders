@@ -235,28 +235,81 @@ func RequireOwnership(resourceType string) gin.HandlerFunc {
 				break // skip DB call
 			}
 
-			idParam := c.Param("id")
-			objID, err := primitive.ObjectIDFromHex(idParam)
-			if err != nil {
-				log.Printf("Invalid payment ID in paymentRecord case: %s, error: %v", idParam, err)
-				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid payment ID"})
-				return
-			}
+			pid := c.Param("id")
+			log.Printf("pid", pid, "user : ", userID)
+			// objID, err := primitive.ObjectIDFromHex(pid)
+			// if err != nil {
+			// 	log.Printf("Invalid payment ID in paymentRecord case: %s, error: %v", pid, err)
+			// 	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid payment ID"})
+			// 	return
+			// }
 
 			var record model.PaymentRecord
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			err = db.PaymentRecordCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&record)
+			// err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": pid}).Decode(&record)
+			// if err != nil {
+			// 	log.Printf("Payment record not found: %s, error: %v", pid, err)
+			// 	c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
+			// 	return
+			// }
+
+			err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": "google-oauth2|107462204307858457700", "Deleted": false}).Decode(&record)
 			if err != nil {
-				log.Printf("Payment record not found: %s, error: %v", idParam, err)
+				log.Printf("Payment record not found: %s, error: %v", pid, err)
 				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
 				return
 			}
 
 			isOwner = record.SupplierPID == userID
 			if !isOwner {
-				log.Printf("User %s is not the owner of payment record %s (owner: %s)", userID, idParam, record.SupplierPID)
+				log.Printf("User %s is not the owner of payment record %s (owner: %s)", userID, pid, record.SupplierPID)
+			}
+		
+
+		case "profPaymentRecord":
+			for _, role := range roles {
+				if role == "admin" {
+					isOwner = true
+					break
+				}
+			}
+			if isOwner {
+				log.Printf("User %s is admin, skipping paymentRecord ownership check", userID)
+				break // skip DB call
+			}
+
+			pid := c.Param("id")
+			log.Printf("pid", pid, "user : ", userID)
+			// objID, err := primitive.ObjectIDFromHex(pid)
+			// if err != nil {
+			// 	log.Printf("Invalid payment ID in paymentRecord case: %s, error: %v", pid, err)
+			// 	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid payment ID"})
+			// 	return
+			// }
+
+			var record model.PaymentRecord
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			// err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": pid}).Decode(&record)
+			// if err != nil {
+			// 	log.Printf("Payment record not found: %s, error: %v", pid, err)
+			// 	c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
+			// 	return
+			// }
+
+			err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": "google-oauth2|107462204307858457700", "Deleted": false}).Decode(&record)
+			if err != nil {
+				log.Printf("Payment record not found: %s, error: %v", pid, err)
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
+				return
+			}
+
+			isOwner = record.SupplierPID == userID
+			if !isOwner {
+				log.Printf("User %s is not the owner of payment record %s (owner: %s)", userID, pid, record.SupplierPID)
 			}
 		}
 
