@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -63,7 +65,10 @@ func CreateProfessional(c *gin.Context) {
 	// Insert the professional into the database
 	_, err := db.ProfessionalCollection.InsertOne(ctx, professional)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create professional"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "failed to create professional",
+			"details": err.Error(),
+		})
 		return
 	}
 
@@ -74,6 +79,7 @@ func CreateProfessional(c *gin.Context) {
 		Approved:        false,
 		Payments:        []model.Payment{}, // Empty payments list
 		Deleted:         false,
+		PackageName:     "",
 	}
 
 	_, err = db.ProfessionalPaymentRecordCollection.InsertOne(ctx, paymentRecord)
@@ -171,7 +177,9 @@ func GetProfessionalByID(c *gin.Context) {
 
 // GetProfessionalByPID returns a professional only if its associated PaymentRecord is approved or deleted
 func GetProfessionalByPID(c *gin.Context) {
-	pid := c.Param("pid")
+	raw := c.Param("pid") // e.g. "\"google-oauth2|101...\""
+	unescaped, _ := url.PathUnescape(raw)
+	pid := strings.Trim(unescaped, "\"") // remove any surrounding quotes
 	if pid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Professional PID is required"})
 		return
@@ -860,4 +868,45 @@ func GetProfessionalTypes(c *gin.Context) {
 		"professional_types": validTypes,
 		"count":              len(validTypes),
 	})
+}
+
+func UpdateProfessionalPaymentRecordApprovedStatus(id string, approved bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": bson.M{"approved": approved}}
+	_, err := db.ProfessionalPaymentRecordCollection.UpdateOne(ctx, bson.M{"professional_pid": id}, update)
+
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment status")
+	}
+
+	return nil
+}
+
+func SetProfessionalPaymentRecordPackageName(id string, packageName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": bson.M{"package_name": packageName}}
+	_, err := db.ProfessionalPaymentRecordCollection.UpdateOne(ctx, bson.M{"professional_pid": id}, update)
+
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment status")
+	}
+
+	return nil
+}
+
+func AppendPaymentToProfessionalPaymentRecord(id string, payment model.Payment) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$push": bson.M{"payments": payment}}
+	_, err := db.ProfessionalPaymentRecordCollection.UpdateOne(ctx, bson.M{"professional_pid": id}, update)
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment recrod")
+	}
+
+	return nil
 }
