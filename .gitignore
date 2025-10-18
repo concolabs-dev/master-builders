@@ -30,7 +30,7 @@ go.work
 Thumbs.db
 
 # Build directories
-bin/
+bin/*
 build/
 
 .env
