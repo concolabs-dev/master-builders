@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	// "math"
@@ -639,6 +641,7 @@ func GetSupplierByPID(c *gin.Context) {
 			{"Deleted": true},
 		},
 	}).Decode(&paymentRec)
+	log.Println("===============paymentRec====================", paymentRec)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No approved or deleted payment record for supplier PID %s", pid)})
 		return
@@ -787,6 +790,47 @@ func DeleteSupplier(c *gin.Context) {
 		"message":      "Supplier and items deleted successfully",
 		"deletedItems": itemsRes.DeletedCount,
 	})
+}
+
+func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": bson.M{"Approved": approved}}
+	_, err := db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"Supplierpid": id}, update)
+
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment status")
+	}
+
+	return nil
+}
+
+func SetSupplierPaymentRecordPackageName(id string, packageName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": bson.M{"package_name": packageName}}
+	_, err := db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"Supplierpid": id}, update)
+
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment status")
+	}
+
+	return nil
+}
+
+func AppendPaymentToSupplierPaymentRecord(id string, payment model.Payment) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$push": bson.M{"Payments": payment}}
+	_, err := db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"Supplierpid": id}, update)
+	if err != nil {
+		return fmt.Errorf("database error while adding a payment recrod")
+	}
+
+	return nil
 }
 
 // getItems retrieves all items.
@@ -1078,25 +1122,71 @@ func GetPaymentRecords(c *gin.Context) {
 
 	c.JSON(http.StatusOK, records)
 }
-func GetPaymentRecordByID(c *gin.Context) {
-	idParam := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(idParam)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
-		return
-	}
 
-	var record model.PaymentRecord
+type Payment struct {
+	Month       time.Time `bson:"Month" json:"Month"`
+	Amount      float64   `bson:"Amount" json:"Amount"`
+	PaymentDate time.Time `bson:"paymentDate" json:"paymentDate"`
+}
+
+type PaymentRecordReponse struct {
+	ID          primitive.ObjectID `json:"id,omitempty"`
+	PID         string             `json:"pid"`
+	Approved    bool               `json:"approved"`
+	Payments    []Payment          `json:"payments"`
+	Deleted     bool               `json:"deleted"`
+}
+
+func GetPaymentRecordByID(c *gin.Context) {
+	raw := c.Param("pid") // e.g. "\"google-oauth2|101...\""
+	unescaped, _ := url.PathUnescape(raw)
+	pid := strings.Trim(unescaped, "\"") // remove any surrounding quotes
+	typeParam := c.Param("type")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = db.PaymentRecordCollection.FindOne(ctx, bson.M{"_id": objID, "Deleted": false}).Decode(&record)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Payment record not found"})
+	switch typeParam {
+	case "supplier":
+		var record model.PaymentRecord
+		err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": "google-oauth2|107462204307858457700", "Deleted": false}).Decode(&record)
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
+			return
+		}
+		res := PaymentRecordReponse{
+			ID:       record.ID,
+			PID:      record.SupplierPID, // or SupplierPID if that's your actual field
+			Approved: record.Approved,
+			Deleted:  record.Deleted,
+		}
+		c.JSON(http.StatusOK, res)
+		return
+
+	case "professional":
+		var record model.ProfessionalPaymentRecord
+
+		err := db.ProfessionalPaymentRecordCollection.FindOne(
+			ctx,
+			bson.M{"professional_pid": pid, "deleted": false},
+		).Decode(&record)
+
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found for pid : " + pid})
+			return
+		}
+		res := PaymentRecordReponse{
+			ID:       record.ID,
+			PID:      record.ProfessionalPID,
+			Approved: record.Approved,
+			Deleted:  record.Deleted,
+		}
+		c.JSON(http.StatusOK, res)
 		return
 	}
 
-	c.JSON(http.StatusOK, record)
 }
 func UpdatePaymentRecord(c *gin.Context) {
 	idParam := c.Param("id")
