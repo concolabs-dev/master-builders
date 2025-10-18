@@ -136,7 +136,7 @@ func main() {
 
 	router.POST("/paymentRecords", auth.RequireRoles("admin"), handlers.CreatePaymentRecord)
 	router.GET("/paymentRecords", auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecords)
-	router.GET("/paymentRecords/:id", auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecordByID)
+	router.GET("/paymentRecords/:pid/:type", auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecordByID)
 	router.PUT("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.UpdatePaymentRecord)
 	router.DELETE("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.DeletePaymentRecord)
 

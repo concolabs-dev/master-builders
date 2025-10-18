@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	// "math"
@@ -789,7 +791,6 @@ func DeleteSupplier(c *gin.Context) {
 	})
 }
 
-
 func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1121,19 +1122,43 @@ func GetPaymentRecords(c *gin.Context) {
 	c.JSON(http.StatusOK, records)
 }
 func GetPaymentRecordByID(c *gin.Context) {
-	pid := c.Param("id")
 
-	var record model.PaymentRecord
+	raw := c.Param("pid") // e.g. "\"google-oauth2|101...\""
+	unescaped, _ := url.PathUnescape(raw)
+	pid := strings.Trim(unescaped, "\"") // remove any surrounding quotes
+	typeParam := c.Param("type")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": pid, "Deleted": false}).Decode(&record)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Payment record not found"})
+	switch typeParam {
+	case "supplier":
+		var record model.PaymentRecord
+		err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": "google-oauth2|107462204307858457700", "Deleted": false}).Decode(&record)
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
+			return
+		}
+		c.JSON(http.StatusOK, record)
+		return
+
+	case "professional":
+		var record model.ProfessionalPaymentRecord
+
+		err := db.ProfessionalPaymentRecordCollection.FindOne(
+			ctx,
+			bson.M{"professional_pid": pid, "deleted": false},
+		).Decode(&record)
+
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found for pid : " + pid})
+			return
+		}
+		c.JSON(http.StatusOK, record)
 		return
 	}
-
-	c.JSON(http.StatusOK, record)
 }
 func UpdatePaymentRecord(c *gin.Context) {
 	idParam := c.Param("id")

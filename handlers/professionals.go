@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -85,7 +87,7 @@ func CreateProfessional(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Professional created but failed to create payment record"})
 		return
 	}
-	
+
 	token, err := auth.GetManagementToken()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get management token"})
@@ -175,7 +177,9 @@ func GetProfessionalByID(c *gin.Context) {
 
 // GetProfessionalByPID returns a professional only if its associated PaymentRecord is approved or deleted
 func GetProfessionalByPID(c *gin.Context) {
-	pid := c.Param("pid")
+	raw := c.Param("pid") // e.g. "\"google-oauth2|101...\""
+	unescaped, _ := url.PathUnescape(raw)
+	pid := strings.Trim(unescaped, "\"") // remove any surrounding quotes
 	if pid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Professional PID is required"})
 		return
