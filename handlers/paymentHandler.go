@@ -17,9 +17,33 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
+	"context"
+	"net/url"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"material-api/db"
+	"material-api/model"
 )
 
 const MaxBodyBytes int64 = 64 << 10 // 65536
+
+
+type Payment struct {
+	Month       time.Time `bson:"Month" json:"Month"`
+	Amount      float64   `bson:"Amount" json:"Amount"`
+	PaymentDate time.Time `bson:"paymentDate" json:"paymentDate"`
+}
+
+type PaymentRecordReponse struct {
+	ID       primitive.ObjectID `json:"id,omitempty"`
+	PID      string             `json:"pid"`
+	Approved bool               `json:"approved"`
+	Payments []Payment          `json:"payments"`
+	Deleted  bool               `json:"deleted"`
+}
 
 type TransactionWebhook struct {
 	Type          string    `json:"type"           validate:"required"`
@@ -48,6 +72,151 @@ func respondError(c *gin.Context, status int, code, msg string, detail interface
 		"time": time.Now().UTC(),
 	})
 }
+
+func CreatePaymentRecord(c *gin.Context) {
+	var record model.PaymentRecord
+	if err := c.ShouldBindJSON(&record); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
+
+	// Set a new ObjectID for the record.
+	record.ID = primitive.NewObjectID()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := db.PaymentRecordCollection.InsertOne(ctx, record)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment record"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, record)
+}
+func GetPaymentRecords(c *gin.Context) {
+	var records []model.PaymentRecord
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Only return records that are not marked as deleted.
+	cursor, err := db.PaymentRecordCollection.Find(ctx, bson.M{"Deleted": false})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var record model.PaymentRecord
+		if err := cursor.Decode(&record); err != nil {
+			continue // Skip problematic entries.
+		}
+		records = append(records, record)
+	}
+
+	c.JSON(http.StatusOK, records)
+}
+
+func GetPaymentRecordByID(c *gin.Context) {
+	raw := c.Param("pid") // e.g. "\"google-oauth2|101...\""
+	unescaped, _ := url.PathUnescape(raw)
+	pid := strings.Trim(unescaped, "\"") // remove any surrounding quotes
+	typeParam := c.Param("type")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	switch typeParam {
+	case "supplier":
+		var record model.PaymentRecord
+		err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": "google-oauth2|107462204307858457700", "Deleted": false}).Decode(&record)
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
+			return
+		}
+		res := PaymentRecordReponse{
+			ID:       record.ID,
+			PID:      record.SupplierPID, // or SupplierPID if that's your actual field
+			Approved: record.Approved,
+			Deleted:  record.Deleted,
+		}
+		c.JSON(http.StatusOK, res)
+		return
+
+	case "professional":
+		var record model.ProfessionalPaymentRecord
+
+		err := db.ProfessionalPaymentRecordCollection.FindOne(
+			ctx,
+			bson.M{"professional_pid": pid, "deleted": false},
+		).Decode(&record)
+
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found for pid : " + pid})
+			return
+		}
+		res := PaymentRecordReponse{
+			ID:       record.ID,
+			PID:      record.ProfessionalPID,
+			Approved: record.Approved,
+			Deleted:  record.Deleted,
+		}
+		c.JSON(http.StatusOK, res)
+		return
+	}
+
+}
+func UpdatePaymentRecord(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	var updateData map[string]interface{}
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": updateData}
+	_, err = db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update payment record"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Payment record updated successfully"})
+}
+func DeletePaymentRecord(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Soft delete by setting the Deleted field to true.
+	update := bson.M{"$set": bson.M{"Deleted": true}}
+	_, err = db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment record"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Payment record deleted successfully"})
+}
+
 
 func HandleWebhook(c *gin.Context) {
 	start := time.Now()

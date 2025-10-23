@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes registers all email-related routes to the provided router
-func RegisterRoutes(router *gin.Engine) {
+// RegisterRoutesEmail registers all email-related routes to the provided router
+func RegisterRoutesEmail(router *gin.Engine) {
 	router.GET("/send-test-email", SendTestEmail)
 	router.POST("/send-email", SendCustomEmail)
 }
