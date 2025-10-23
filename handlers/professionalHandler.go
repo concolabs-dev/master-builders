@@ -176,26 +176,11 @@ func GetProfessionalByPID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Check for a PaymentRecord for this professional PID where either Approved is true or Deleted is true
-	// var paymentRec model.ProfessionalPaymentRecord
-	// err := professionalPaymentRecordCollection.FindOne(ctx, bson.M{
-	// 	"professional_pid": pid,
-	// 	"$or": []bson.M{
-	// 		{"approved": true},
-	// 		{"deleted": true},
-	// 	},
-	// }).Decode(&paymentRec)
-
-	// if err != nil {
-	// 	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No approved or deleted payment record for professional PID %s", pid)})
-	// 	return
-	// }
-
-	// If a valid PaymentRecord exists, fetch the professional
 	var professional model.Professional
 	err := db.ProfessionalCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&professional)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Professional with PID %s not found", pid)})
+		// c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Professional with PID %s not found", pid)})
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Error : %s", err)})
 		return
 	}
 
