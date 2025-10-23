@@ -16,10 +16,6 @@ import (
 	"material-api/model"
 )
 
-// var professionalCollection *mongo.Collection
-// var professionalPaymentRecordCollection *mongo.Collection
-// var projectCollection *mongo.Collection
-
 // // InitProfessionalCollections initializes the collections for professionals
 // func InitProfessionalCollections(database *mongo.Database) {
 // 	professionalCollection = database.Collection("professionals")
