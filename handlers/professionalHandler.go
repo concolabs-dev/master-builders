@@ -180,11 +180,14 @@ func GetProfessionalByPID(c *gin.Context) {
 
 	var professional model.Professional
 	err := db.ProfessionalCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&professional)
-	
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Professional not found"})
-	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Professional not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error: " + err.Error()})
+		}
+		return
 	}
 
 	c.JSON(http.StatusOK, professional)

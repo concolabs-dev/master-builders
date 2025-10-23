@@ -546,17 +546,20 @@ func GetSupplierByPPID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Supplier PID is required"})
 		return
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var supplier model.Supplier
 	err := db.SupplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
 
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Supplier not found"})
-	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Supplier not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
 	}
 
 	c.JSON(http.StatusOK, supplier)
@@ -1141,11 +1144,11 @@ type Payment struct {
 }
 
 type PaymentRecordReponse struct {
-	ID          primitive.ObjectID `json:"id,omitempty"`
-	PID         string             `json:"pid"`
-	Approved    bool               `json:"approved"`
-	Payments    []Payment          `json:"payments"`
-	Deleted     bool               `json:"deleted"`
+	ID       primitive.ObjectID `json:"id,omitempty"`
+	PID      string             `json:"pid"`
+	Approved bool               `json:"approved"`
+	Payments []Payment          `json:"payments"`
+	Deleted  bool               `json:"deleted"`
 }
 
 func GetPaymentRecordByID(c *gin.Context) {
