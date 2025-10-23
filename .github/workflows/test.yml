@@ -53,4 +53,4 @@ jobs:
           # Reload systemd and restart the service
           sudo systemctl daemon-reload
           sudo systemctl restart build-market-backend
-          sudo systemctl status build-market-backend--no-pager
+          sudo systemctl status build-market-backend --no-pager
