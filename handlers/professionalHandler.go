@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	// Import your models package or adjust as needed
 	"material-api/auth"
@@ -178,10 +180,11 @@ func GetProfessionalByPID(c *gin.Context) {
 
 	var professional model.Professional
 	err := db.ProfessionalCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&professional)
-	if err != nil {
-		// c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Professional with PID %s not found", pid)})
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Error : %s", err)})
-		return
+	
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Professional not found"})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 
 	c.JSON(http.StatusOK, professional)

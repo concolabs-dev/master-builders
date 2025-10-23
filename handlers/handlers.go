@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"material-api/auth"
@@ -540,14 +542,23 @@ func GetSupplierByID(c *gin.Context) {
 }
 func GetSupplierByPPID(c *gin.Context) {
 	pid := c.Param("pid")
-	var supplier model.Supplier
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err := db.SupplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Supplier with PID %s not found", pid)})
+	if pid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Supplier PID is required"})
 		return
 	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var supplier model.Supplier
+	err := db.SupplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
+
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Supplier not found"})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
 	c.JSON(http.StatusOK, supplier)
 }
 
