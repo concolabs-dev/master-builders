@@ -241,13 +241,13 @@ func RequireOwnership(resourceType string) gin.HandlerFunc {
 			unescaped, _ := url.PathUnescape(raw)
 			pid := strings.Trim(unescaped, "\"") // remove any surrounding quotes
 			typeParam := c.Param("type")
-			log.Printf("pid", pid, "user : ", userID)
+			log.Printf("pid: ", pid, "user : ", userID)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			switch typeParam {
 			case "supplier":
 				var record model.PaymentRecord
-				err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": "google-oauth2|107462204307858457700", "Deleted": false}).Decode(&record)
+				err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": pid, "Deleted": false}).Decode(&record)
 				if err != nil {
 					log.Printf("Payment record not found: %s, error: %v", pid, err)
 					c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
@@ -271,20 +271,20 @@ func RequireOwnership(resourceType string) gin.HandlerFunc {
 					return
 				}
 
-				// isOwner = record.ProfessionalPID == userID
-				// if !isOwner {
-				// 	log.Printf("User %s is not the owner of payment record %s (owner: %s)", userID, pid, record.ProfessionalPID)
-				// }
+				isOwner = record.ProfessionalPID == userID
+				if !isOwner {
+					log.Printf("User %s is not the owner of payment record %s (owner: %s)", userID, pid, record.ProfessionalPID)
+				}
 
 				log.Printf("Found record: %+v", record)
 			}
 		}
 
-		// if !isOwner {
-		// 	log.Printf("Ownership check failed for user %s on resource type %s", userID, resourceType)
-		// 	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not owner"})
-		// 	return
-		// }
+		if !isOwner {
+			log.Printf("Ownership check failed for user %s on resource type %s", userID, resourceType)
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "not owner"})
+			return
+		}
 		c.Next()
 	}
 }
