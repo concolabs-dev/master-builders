@@ -30,8 +30,9 @@ go.work
 Thumbs.db
 
 # Build directories
-bin/
+bin/*
 build/
 
 .env
 material-api
+__debug_bin3260875797

@@ -33,6 +33,7 @@ type ProfessionalPaymentRecord struct {
 	Approved        bool               `bson:"approved" json:"approved"`
 	Payments        []Payment          `bson:"payments" json:"payments"`
 	Deleted         bool               `bson:"deleted" json:"deleted"`
+	PackageName     string             `bson:"package_name" json:"package_name"`
 }
 type Project struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
