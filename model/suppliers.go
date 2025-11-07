@@ -78,6 +78,7 @@ type ConversionRates struct {
 	SGD float64 `bson:"SGD"`
 	AED float64 `bson:"AED"`
 	BRL float64 `bson:"BRL"`
+	LKR float64 `bson:"LKR"`
 }
 
 // supplier
