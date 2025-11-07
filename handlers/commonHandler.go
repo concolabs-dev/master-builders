@@ -51,6 +51,7 @@ func GetMajorCurrencies(c *gin.Context) {
 		"SGD": result.ConversionRates.SGD,
 		"AED": result.ConversionRates.AED,
 		"BRL": result.ConversionRates.BRL,
+		"LKR": result.ConversionRates.LKR,
 	}
 
 	// Filter and return only the major currencies
