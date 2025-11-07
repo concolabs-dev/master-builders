@@ -39,7 +39,7 @@ type SubSubcategory struct {
 
 // Subcategory represents a subcategory that may contain sub-subcategories
 type Subcategory struct {
-	Name             string           `bson:"name,omitempty" json:"name,omitempty"`
+	Name             string   `bson:"name,omitempty" json:"name,omitempty"`
 	SubSubcategories []SubSubcategory `bson:"sub_subcategories,omitempty" json:"sub_subcategories,omitempty"`
 }
 
