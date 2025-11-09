@@ -130,7 +130,7 @@ func GetPaymentRecordByID(c *gin.Context) {
 	switch typeParam {
 	case "supplier":
 		var record model.PaymentRecord
-		err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": "google-oauth2|107462204307858457700", "Deleted": false}).Decode(&record)
+		err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": pid, "Deleted": false}).Decode(&record)
 		if err != nil {
 			log.Printf("Payment record not found: %s, error: %v", pid, err)
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
