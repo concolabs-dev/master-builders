@@ -12,22 +12,24 @@ import (
 
 func RegisterRoutes(router *gin.Engine) {
 
+	//materials routes
 	router.GET("/search", handlers.SearchMaterials)
 	router.GET("/materials", handlers.GetMaterials)
 	router.GET("/materials/:id", handlers.GetMaterialByID)
 	router.GET("/materials/filter", handlers.GetMaterialsByCategory)
-
 	router.POST("/materials", auth.RequireRoles("admin"), handlers.CreateMaterial)
 	router.PUT("/materials/:number", auth.RequireRoles("admin"), handlers.UpdateMaterial)
 	router.DELETE("/materials/:id", auth.RequireRoles("admin"), handlers.DeleteMaterial)
-	// Routes for handling types
+
+	//types routes
 	router.GET("/types", handlers.GetTypes)
 	router.GET("/types/:id", handlers.GetTypeByID)
 	router.POST("/types", auth.RequireRoles("admin"), handlers.CreateType)
 	router.PUT("/types/:id", auth.RequireRoles("admin"), handlers.UpdateType)
 	router.DELETE("/types/:id", auth.RequireRoles("admin"), handlers.DeleteType)
 	router.GET("/forex", handlers.GetMajorCurrencies)
-	// Suppliers endpoints.
+	
+	//suppliers routes
 	router.POST("/suppliers", auth.RequireOwnership("supplier"), handlers.CreateSupplier)
 	router.GET("/suppliers", handlers.GetSuppliers)
 	router.GET("/suppliers/:id", handlers.GetSupplierByID)
@@ -45,12 +47,14 @@ func RegisterRoutes(router *gin.Engine) {
 	router.PUT("/items/:id", auth.RequireOwnership("item"), handlers.UpdateItem)
 	router.DELETE("/items/:id", auth.RequireOwnership("item"), handlers.DeleteItem)
 
+	//paymentRecords routes
 	router.POST("/paymentRecords", auth.RequireRoles("admin"), handlers.CreatePaymentRecord)
 	router.GET("/paymentRecords", auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecords)
 	router.GET("/paymentRecords/:pid/:type", auth.RequireOwnership("paymentRecord"), handlers.GetPaymentRecordByID)
 	router.PUT("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.UpdatePaymentRecord)
 	router.DELETE("/paymentRecords/:id", auth.RequireRoles("admin"), handlers.DeletePaymentRecord)
 
+	//professionals routes
 	router.POST("/professionals", auth.RequireOwnership("professional"), handlers.CreateProfessional)
 	router.GET("/professionals", handlers.GetAllProfessionals)
 	router.GET("/professionals/:id", handlers.GetProfessionalByID)
@@ -74,6 +78,7 @@ func RegisterRoutes(router *gin.Engine) {
 	// router.PUT("/projects/:id", handlers.UpdateProject)                  // Update a project
 	// router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
 
+	//materials routes
 	router.POST("/projects", handlers.CreateProject)                                    // Create a new project
 	router.GET("/projects", handlers.GetProjects)                                       // Get all projects
 	router.GET("/projects/filter", handlers.GetProjectsWithFilters)                     // Get projects with filters
