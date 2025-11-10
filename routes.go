@@ -38,6 +38,7 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/suppliers/email/:email", handlers.GetSupplierByEmail)
 	router.PUT("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.UpdateSupplier)
 	router.DELETE("/suppliers/:id", auth.RequireOwnershipOrRoles("supplier", "admin"), handlers.DeleteSupplier)
+	router.PUT("/suppliers/approved/:id", auth.RequireRoles("admin"), handlers.ToggleStatusSupplier)
 
 	//items routes
 	router.GET("/items", handlers.GetItems)
