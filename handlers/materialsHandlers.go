@@ -253,3 +253,38 @@ func DeleteMaterial(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Material deleted successfully"})
 }
+
+func UpdateMaterialCategory(ctx context.Context, oldCat model.Category, newCat model.Category) (int64, error) {
+
+	// 1. Define the filter to find all documents matching the OLD category
+	// This filter is precise and will only match if all three levels are identical.
+	filter := bson.M{
+		"Category.Category":       oldCat.Category,
+		"Category.Subcategory":    oldCat.Subcategory,
+		"Category.SubSubcategory": oldCat.SubSubcategory,
+	}
+
+	// 2. Define the update operation to $set the NEW category values
+	update := bson.M{
+		"$set": bson.M{
+			"Category.Category":       newCat.Category,
+			"Category.Subcategory":    newCat.Subcategory,
+			"Category.SubSubcategory": newCat.SubSubcategory,
+		},
+	}
+
+	// 3. Set a timeout for the operation
+	// We use the provided context but also add a local timeout
+	updateCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// 4. Execute the UpdateMany operation
+	// This finds all documents matching the filter and applies the update
+	result, err := db.Collection.UpdateMany(updateCtx, filter, update)
+	if err != nil {
+		return 0, fmt.Errorf("could not update material categories: %w", err)
+	}
+
+	// 5. Return the number of documents that were modified
+	return result.ModifiedCount, nil
+}
