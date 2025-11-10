@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -10,9 +9,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-
 	"material-api/auth"
 	"material-api/db"
 	"material-api/email"
@@ -41,19 +37,9 @@ func main() {
 		log.Fatalf("Failed to initialize JWKS: %v", err)
 	}
 
-	// Connect to MongoDB
-	mongoURI := os.Getenv("MONGO_URI")
-	client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	err = client.Connect(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	if err := db.InitDB(); err != nil {
+        log.Fatalf("Failed to initialize database: %v", err)
+    }
 
 	// Initialize email service
 	if err := email.InitEmailService(); err != nil {
@@ -62,20 +48,6 @@ func main() {
 	} else {
 		log.Println("Email service initialized successfully")
 	}
-
-	// Select database & collection
-	dbName := os.Getenv("DB_NAME")
-	collectionName := os.Getenv("COLLECTION_NAME1")
-	typeCollectionName := os.Getenv("COLLECTION_NAME2")
-	db.Collection = client.Database(dbName).Collection(collectionName)
-	db.TypeCollection = client.Database(dbName).Collection(typeCollectionName)
-	db.ExchangeRateCollection = client.Database(dbName).Collection("rates")
-	db.SupplierCollection = client.Database(os.Getenv("DB_NAME")).Collection("suppliers")
-	db.ItemCollection = client.Database(os.Getenv("DB_NAME")).Collection("items")
-	db.PaymentRecordCollection = client.Database(os.Getenv("DB_NAME")).Collection("payments")
-	db.ProfessionalCollection = client.Database(dbName).Collection("professionals")
-	db.ProfessionalPaymentRecordCollection = client.Database(dbName).Collection("professional_payment_records")
-	db.ProjectCollection = client.Database(dbName).Collection("projects")
 
 	// Start exchange rate updater in a separate goroutine
 	go utils.StartExchangeRateUpdater()

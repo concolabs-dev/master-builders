@@ -44,7 +44,7 @@ type Subcategory struct {
 }
 
 // Category represents a category that may contain subcategories
-type typeCategory struct {
+type TypeCategory struct {
 	Name          string        `bson:"name,omitempty" json:"name,omitempty"`
 	Subcategories []Subcategory `bson:"subcategories,omitempty" json:"subcategories,omitempty"`
 }
@@ -53,7 +53,18 @@ type typeCategory struct {
 type Type struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Name       string             `bson:"name,omitempty" json:"name,omitempty"`
-	Categories []typeCategory     `bson:"categories,omitempty" json:"categories,omitempty"`
+	Categories []TypeCategory     `bson:"categories,omitempty" json:"categories,omitempty"`
+}
+
+type MaterialCategory struct {
+	Category       string `bson:"Category,omitempty" json:"Category,omitempty"`
+	Subcategory    string `bson:"Subcategory,omitempty" json:"Subcategory,omitempty"`
+	SubSubcategory string `bson:"SubSubcategory,omitempty" json:"SubSubcategory,omitempty"`
+}
+
+type ChangeSet struct {
+	Old MaterialCategory
+	New MaterialCategory
 }
 
 type CurrencyDocument struct {

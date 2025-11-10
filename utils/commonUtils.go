@@ -6,8 +6,9 @@ import (
 	"log"
 	"time"
 
-	"net/http"
 	"material-api/db"
+	"material-api/model"
+	"net/http"
 )
 
 type ExchangeRateResponse struct {
@@ -60,4 +61,53 @@ func UpdateExchangeRates() {
 	}
 }
 
+func FindCategoryChanges(oldTree []model.TypeCategory, newTree []model.TypeCategory) []model.ChangeSet {
+	var changes []model.ChangeSet
 
+	for i, newCat := range newTree {
+		if i >= len(oldTree) {
+			continue // This is a new L1 category, not a rename
+		}
+		oldCat := oldTree[i]
+
+		for j, newSub := range newCat.Subcategories {
+			if j >= len(oldCat.Subcategories) {
+				continue // New L2, not a rename
+			}
+			oldSub := oldCat.Subcategories[j]
+
+			for k, newSubSub := range newSub.SubSubcategories {
+				if k >= len(oldSub.SubSubcategories) {
+					continue // New L3, not a rename
+				}
+				oldSubSub := oldSub.SubSubcategories[k]
+
+				// We found a potential L3 rename!
+				if oldSubSub.Name != newSubSub.Name {
+					changes = append(changes, model.ChangeSet{
+						Old: model.MaterialCategory{oldCat.Name, oldSub.Name, oldSubSub.Name},
+						New: model.MaterialCategory{newCat.Name, newSub.Name, newSubSub.Name},
+					})
+				}
+			} // end L3
+
+			// Check for L2 rename
+			if len(newSub.SubSubcategories) == 0 && oldSub.Name != newSub.Name {
+				changes = append(changes, model.ChangeSet{
+					Old: model.MaterialCategory{oldCat.Name, oldSub.Name, ""},
+					New: model.MaterialCategory{newCat.Name, newSub.Name, ""},
+				})
+			}
+		} // end L2
+
+		// Check for L1 rename
+		if len(newCat.Subcategories) == 0 && oldCat.Name != newCat.Name {
+			changes = append(changes, model.ChangeSet{
+				Old: model.MaterialCategory{oldCat.Name, "", ""},
+				New: model.MaterialCategory{newCat.Name, "", ""},
+			})
+		}
+	} // end L1
+
+	return changes
+}

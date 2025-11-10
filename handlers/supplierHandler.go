@@ -189,7 +189,7 @@ func GetSupplierByPID(c *gin.Context) {
 			{"Deleted": true},
 		},
 	}).Decode(&paymentRec)
-	
+
 	if err != nil {
 		log.Printf("[WARN] No approved or deleted payment record found for supplier PID=%s: %v", pid, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No approved or deleted payment record for supplier PID %s", pid)})
@@ -381,6 +381,53 @@ func DeleteSupplier(c *gin.Context) {
 	})
 }
 
+func ToggleStatusSupplier(c *gin.Context) {
+	// 1. Get the supplier's PID from the URL parameter
+	pid := c.Param("id")
+	if pid == "" {
+		log.Println("[WARN] ToggleStatusSupplier: No PID provided in URL")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Supplier PID (pid) is required"})
+		return
+	}
+
+	// 2. Find the current record
+	var currentStatus model.PaymentRecord
+	filter := bson.M{"Supplierpid": pid}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := db.PaymentRecordCollection.FindOne(ctx, filter).Decode(&currentStatus)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			log.Printf("[WARN] ToggleStatusSupplier: Payment record not found for pid: %s. Error: %v", pid, err)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Supplier payment record not found"})
+			return
+		}
+		log.Printf("[ERROR] ToggleStatusSupplier: Failed to find payment record for pid %s: %v", pid, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find supplier status"})
+		return
+	}
+
+	// 3. Determine the new status (flip the current one)
+	newStatus := !currentStatus.Approved
+	log.Printf("[INFO] ToggleStatusSupplier: Current status for pid %s is %v. Setting to %v.", pid, currentStatus.Approved, newStatus)
+
+	// 4. Call the update function with the new status
+	err = UpdateSupplierPaymentRecordApprovedStatus(pid, newStatus)
+	if err != nil {
+		log.Printf("[ERROR] ToggleStatusSupplier: Failed to update payment record for pid %s: %v", pid, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update supplier status"})
+		return
+	}
+
+	// 5. Return success with the new status
+	log.Printf("[INFO] ToggleStatusSupplier: Successfully toggled status for supplier '%s' to %v", pid, newStatus)
+	c.JSON(http.StatusOK, gin.H{
+		"message":   fmt.Sprintf("Supplier status successfully toggled to %v", newStatus),
+		"newStatus": newStatus,
+	})
+}
 func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool) error {
 	log.Printf("[INFO] UpdateSupplierPaymentRecordApprovedStatus called for Supplierpid=%s approved=%t", id, approved)
 
@@ -436,7 +483,6 @@ func AppendPaymentToSupplierPaymentRecord(id string, payment model.Payment) erro
 	log.Printf("[INFO] Payment appended successfully for Supplierpid=%s", id)
 	return nil
 }
-
 
 //supplier
 // func createSupplier(c *gin.Context) {
