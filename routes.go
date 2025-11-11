@@ -28,17 +28,18 @@ func RegisterRoutes(router *gin.Engine) {
 	router.PUT("/types/:id", auth.RequireRoles("admin"), handlers.UpdateType)
 	router.DELETE("/types/:id", auth.RequireRoles("admin"), handlers.DeleteType)
 	router.GET("/forex", handlers.GetMajorCurrencies)
-	
+
 	//suppliers routes
 	router.POST("/suppliers", auth.RequireOwnership("supplier"), handlers.CreateSupplier)
-	router.GET("/suppliers", handlers.GetSuppliers)
+	// router.GET("/suppliers", handlers.GetSuppliers)
+	router.GET("/suppliers-all", handlers.GetAllSuppliers)
 	router.GET("/suppliers/:id", handlers.GetSupplierByID)
 	router.GET("/suppliers/pid/:pid", handlers.GetSupplierByPID)
 	router.GET("/suppliers/pid/napproved/:pid", handlers.GetSupplierByPPID)
 	router.GET("/suppliers/email/:email", handlers.GetSupplierByEmail)
-	router.PUT("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.UpdateSupplier)
+	router.PUT("/suppliers/:id", auth.RequireOwnershipOrRoles("supplier", "admin"), handlers.UpdateSupplier)
 	router.DELETE("/suppliers/:id", auth.RequireOwnershipOrRoles("supplier", "admin"), handlers.DeleteSupplier)
-	router.PUT("/suppliers/approved/:id", auth.RequireRoles("admin"), handlers.ToggleStatusSupplier)
+	router.GET("/suppliers", handlers.GetApprovedSuppliers)
 
 	//items routes
 	router.GET("/items", handlers.GetItems)
