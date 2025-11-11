@@ -39,7 +39,7 @@ type SubSubcategory struct {
 
 // Subcategory represents a subcategory that may contain sub-subcategories
 type Subcategory struct {
-	Name             string   `bson:"name,omitempty" json:"name,omitempty"`
+	Name             string           `bson:"name,omitempty" json:"name,omitempty"`
 	SubSubcategories []SubSubcategory `bson:"sub_subcategories,omitempty" json:"sub_subcategories,omitempty"`
 }
 
@@ -105,6 +105,17 @@ type Supplier struct {
 	Location      Location           `bson:"location" json:"location"`
 	ProfilePicURL string             `bson:"profile_pic_url" json:"profile_pic_url"`
 	CoverPicURL   string             `bson:"cover_pic_url" json:"cover_pic_url"`
+	Status        string             `bson:"status" json:"status"`
+}
+
+type SupplierWithRecord struct {
+	Supplier Supplier        `json:"supplier" bson:"supplier"`
+	Record   PaymentRecord `json:"record" bson:"record"`
+}
+
+type SupplierWithRecordResponse struct {
+	Supplier Supplier        `json:"supplier" bson:"supplier"`
+	Record   PaymentRecordReponse `json:"record" bson:"record"`
 }
 
 type Location struct {
@@ -125,20 +136,6 @@ type Item struct {
 	Unit        string             `bson:"unit" json:"unit"`
 	Price       float64            `bson:"price" json:"price"`
 	ImgUrl      string             `bson:"imgUrl" json:"imgUrl"`
-}
-type Payment struct {
-	Month       time.Time `bson:"Month" json:"Month"`
-	Amount      float64   `bson:"Amount" json:"Amount"`
-	PaymentDate time.Time `bson:"paymentDate" json:"paymentDate"`
-}
-
-// PaymentRecord represents the main model.
-type PaymentRecord struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	SupplierPID string             `bson:"Supplierpid" json:"Supplierpid"`
-	Approved    bool               `bson:"Approved" json:"Approved"`
-	Payments    []Payment          `bson:"Payments" json:"Payments"`
-	Deleted     bool               `bson:"Deleted" json:"Deleted"`
 }
 
 // package main

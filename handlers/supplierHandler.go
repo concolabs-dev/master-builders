@@ -268,6 +268,139 @@ func GetSuppliers(c *gin.Context) {
 	c.JSON(http.StatusOK, suppliers)
 }
 
+// GetSuppliersByStatus returns all suppliers that match a given status.
+// The status is provided as a query parameter (e.g., /api/suppliers/status?q=active)
+func GetApprovedSuppliers(c *gin.Context) {
+	log.Printf("[INFO] GetApprovedSuppliers called")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 2. Create the filter dynamically based on the query param
+	filter := bson.M{"status": "approved"}
+	log.Printf("[DEBUG] GetSuppliersByStatus: Finding suppliers with filter: %v", filter)
+
+	suppliersCursor, err := db.SupplierCollection.Find(ctx, filter)
+	if err != nil {
+		log.Printf("[ERROR] GetSuppliersByStatus: Database error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching suppliers"})
+		return
+	}
+	defer suppliersCursor.Close(ctx)
+
+	// 3. Decode the suppliers
+	var suppliers []model.Supplier
+	for suppliersCursor.Next(ctx) {
+		var supplier model.Supplier
+		if err := suppliersCursor.Decode(&supplier); err != nil {
+			log.Printf("[WARN] GetSuppliersByStatus: Failed to decode Supplier: %v", err)
+			continue // Skip this supplier
+		}
+		suppliers = append(suppliers, supplier)
+	}
+
+	// 4. Return the results
+	// It's usually better to return 200 OK with an empty list,
+	// as it's easier for frontends to handle than a 404.
+	if len(suppliers) == 0 {
+		log.Printf("[INFO] GetSuppliersByStatus: No suppliers found")
+	} else {
+		log.Printf("[INFO] GetSuppliersByStatus: returning %d suppliers", len(suppliers))
+	}
+
+	c.JSON(http.StatusOK, suppliers)
+}
+
+// GetAllSuppliers returns all suppliers, joined with their payment record.
+func GetAllSuppliers(c *gin.Context) {
+	log.Println("[INFO] GetAllSuppliers called")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// This aggregation pipeline is the "JOIN"
+	pipeline := mongo.Pipeline{
+		// Stage 1: $lookup
+		{
+			{Key: "$lookup", Value: bson.M{
+				"from":         "payments",
+				"localField":   "pid",
+				"foreignField": "Supplierpid",
+				"as":           "recordArray",
+			}},
+		},
+		// Stage 2: $unwind
+		{
+			{Key: "$unwind", Value: bson.M{
+				"path":                       "$recordArray",
+				"preserveNullAndEmptyArrays": true,
+			}},
+		},
+		// Stage 3: $project
+		{
+			{Key: "$project", Value: bson.M{
+				"supplier": "$$ROOT",
+				"record":   "$recordArray",
+			}},
+		},
+		// Stage 4: $project (cleanup)
+		{
+			{Key: "$project", Value: bson.M{
+				"supplier.recordArray": 0,
+			}},
+		},
+	}
+
+	// Run the aggregation on the SupplierCollection
+	cursor, err := db.SupplierCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		log.Printf("[ERROR] Database aggregation error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	// Decode all results into our slice
+	var suppliers []model.SupplierWithRecord
+	if err = cursor.All(ctx, &suppliers); err != nil {
+		log.Printf("[ERROR] Failed to decode aggregation results: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode data"})
+		return
+	}
+
+	// Handle case where no suppliers are found at all
+	if suppliers == nil {
+		suppliers = []model.SupplierWithRecord{}
+	}
+
+	supplierWithRecordResponse := make([]model.SupplierWithRecordResponse, len(suppliers))
+
+	// Loop over the database results and map them to the frontend struct
+	for i, supplier := range suppliers {
+		// Handle the 'null' records from the $unwind
+		var payments []model.Payment
+		if supplier.Record.Payments != nil {
+			payments = supplier.Record.Payments
+		} else {
+			payments = []model.Payment{}
+		}
+
+		supplierWithRecordResponse[i] = model.SupplierWithRecordResponse{
+			Supplier: supplier.Supplier,
+			Record: model.PaymentRecordReponse{
+				ID:          supplier.Record.ID,
+				PID:         supplier.Record.SupplierPID,
+				Approved:    supplier.Record.Approved,
+				Payments:    payments,
+				Deleted:     supplier.Record.Deleted,
+				PackageName: supplier.Record.PackageName,
+			},
+		}
+	}
+
+	log.Printf("[INFO] GetAllSuppliers returning %d combined supplier records", len(supplierWithRecordResponse))
+	c.JSON(http.StatusOK, supplierWithRecordResponse)
+}
+
 // getSupplierByEmail returns a supplier by its email.
 func GetSupplierByEmail(c *gin.Context) {
 	emailParam := c.Param("email")
@@ -381,54 +514,7 @@ func DeleteSupplier(c *gin.Context) {
 	})
 }
 
-func ToggleStatusSupplier(c *gin.Context) {
-	// 1. Get the supplier's PID from the URL parameter
-	pid := c.Param("id")
-	if pid == "" {
-		log.Println("[WARN] ToggleStatusSupplier: No PID provided in URL")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Supplier PID (pid) is required"})
-		return
-	}
-
-	// 2. Find the current record
-	var currentStatus model.PaymentRecord
-	filter := bson.M{"Supplierpid": pid}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err := db.PaymentRecordCollection.FindOne(ctx, filter).Decode(&currentStatus)
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			log.Printf("[WARN] ToggleStatusSupplier: Payment record not found for pid: %s. Error: %v", pid, err)
-			c.JSON(http.StatusNotFound, gin.H{"error": "Supplier payment record not found"})
-			return
-		}
-		log.Printf("[ERROR] ToggleStatusSupplier: Failed to find payment record for pid %s: %v", pid, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find supplier status"})
-		return
-	}
-
-	// 3. Determine the new status (flip the current one)
-	newStatus := !currentStatus.Approved
-	log.Printf("[INFO] ToggleStatusSupplier: Current status for pid %s is %v. Setting to %v.", pid, currentStatus.Approved, newStatus)
-
-	// 4. Call the update function with the new status
-	err = UpdateSupplierPaymentRecordApprovedStatus(pid, newStatus)
-	if err != nil {
-		log.Printf("[ERROR] ToggleStatusSupplier: Failed to update payment record for pid %s: %v", pid, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update supplier status"})
-		return
-	}
-
-	// 5. Return success with the new status
-	log.Printf("[INFO] ToggleStatusSupplier: Successfully toggled status for supplier '%s' to %v", pid, newStatus)
-	c.JSON(http.StatusOK, gin.H{
-		"message":   fmt.Sprintf("Supplier status successfully toggled to %v", newStatus),
-		"newStatus": newStatus,
-	})
-}
-func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool) error {
+func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool, status string) error {
 	log.Printf("[INFO] UpdateSupplierPaymentRecordApprovedStatus called for Supplierpid=%s approved=%t", id, approved)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -437,7 +523,12 @@ func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool) error {
 	update := bson.M{"$set": bson.M{"Approved": approved}}
 	log.Printf("[DEBUG] Updating PaymentRecord Approved field for Supplierpid=%s", id)
 	_, err := db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"Supplierpid": id}, update)
+	if err != nil {
+		log.Printf("[ERROR] Database error while updating Approved status for Supplierpid=%s: %v", id, err)
+		return fmt.Errorf("database error while adding a payment status")
+	}
 
+	_, err = db.SupplierCollection.UpdateOne(ctx, bson.M{"pid": id}, status)
 	if err != nil {
 		log.Printf("[ERROR] Database error while updating Approved status for Supplierpid=%s: %v", id, err)
 		return fmt.Errorf("database error while adding a payment status")
