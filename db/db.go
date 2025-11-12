@@ -14,7 +14,7 @@ import (
 // Package-level variables to be accessed by handlers
 var (
 	Client                              *mongo.Client
-	Collection                          *mongo.Collection
+	MaterialCollection                  *mongo.Collection
 	TypeCollection                      *mongo.Collection
 	ExchangeRateCollection              *mongo.Collection
 	SupplierCollection                  *mongo.Collection
@@ -69,7 +69,7 @@ func InitDB() error {
 	database := Client.Database(dbName)
 
 	// Initialize all collections from your list
-	Collection = database.Collection("materials")
+	MaterialCollection = database.Collection("materials")
 	TypeCollection = database.Collection("types")
 	ExchangeRateCollection = database.Collection("rates")
 	SupplierCollection = database.Collection("suppliers")

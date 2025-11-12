@@ -61,7 +61,10 @@ func GetSupplierByPPID(c *gin.Context) {
 
 	var supplier model.Supplier
 	log.Printf("[DEBUG] Fetching supplier with pid=%s from database", pid)
-	err := db.SupplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
+	filter := bson.M{
+		"pid":    pid,
+	}
+	err := db.SupplierCollection.FindOne(ctx, filter).Decode(&supplier)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -179,27 +182,34 @@ func GetSupplierByPID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Check for a PaymentRecord for this supplier PID where either Approved is true or Deleted is true.
-	var paymentRec model.PaymentRecord
-	log.Printf("[DEBUG] Looking up PaymentRecord for supplier PID=%s", pid)
-	err := db.PaymentRecordCollection.FindOne(ctx, bson.M{
-		"Supplierpid": pid,
-		"$or": []bson.M{
-			{"Approved": true},
-			{"Deleted": true},
-		},
-	}).Decode(&paymentRec)
+	// // Check for a PaymentRecord for this supplier PID where either Approved is true or Deleted is true.
+	// var paymentRec model.PaymentRecord
+	// log.Printf("[DEBUG] Looking up PaymentRecord for supplier PID=%s", pid)
+	// err := db.PaymentRecordCollection.FindOne(ctx, bson.M{
+	// 	"Supplierpid": pid,
+	// 	"$or": []bson.M{
+	// 		{"Approved": true},
+	// 		{"Deleted": true},
+	// 	},
+	// }).Decode(&paymentRec)
 
-	if err != nil {
-		log.Printf("[WARN] No approved or deleted payment record found for supplier PID=%s: %v", pid, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No approved or deleted payment record for supplier PID %s", pid)})
-		return
-	}
+	// if err != nil {
+	// 	log.Printf("[WARN] No approved or deleted payment record found for supplier PID=%s: %v", pid, err)
+	// 	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No approved or deleted payment record for supplier PID %s", pid)})
+	// 	return
+	// }
 
 	// If a valid PaymentRecord exists, fetch the supplier.
 	var supplier model.Supplier
 	log.Printf("[DEBUG] Fetching supplier with pid=%s due to valid PaymentRecord", pid)
-	err = db.SupplierCollection.FindOne(ctx, bson.M{"pid": pid}).Decode(&supplier)
+
+	filter := bson.M{
+		"pid":    pid,
+		"status": "approved",
+	}
+	log.Printf("[DEBUG] GetSuppliersByStatus: Finding suppliers with filter: %v", filter)
+
+	err := db.SupplierCollection.FindOne(ctx, filter).Decode(&supplier)
 	if err != nil {
 		log.Printf("[WARN] Supplier with PID %s not found after valid payment record: %v", pid, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Supplier with PID %s not found", pid)})

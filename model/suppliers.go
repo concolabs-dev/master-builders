@@ -10,7 +10,13 @@ import (
 type Category struct {
 	Category       string  `bson:"Category" json:"Category"`
 	Subcategory    *string `bson:"Subcategory,omitempty" json:"Subcategory,omitempty"`
-	SubSubcategory *string `bson:"SubSubcategory,omitempty" json:"SubSubcategory,omitempty"`
+	SubSubcategory *string `bson:"Sub subcategory,omitempty" json:"Sub subcategory,omitempty"`
+}
+
+type MaterialCategory struct {
+	Category       string `bson:"Category,omitempty" json:"Category,omitempty"`
+	Subcategory    string `bson:"Subcategory,omitempty" json:"Subcategory,omitempty"`
+	SubSubcategory string `bson:"Sub subcategory,omitempty" json:"Sub subcategory,omitempty"`
 }
 
 // Material struct
@@ -40,7 +46,7 @@ type SubSubcategory struct {
 // Subcategory represents a subcategory that may contain sub-subcategories
 type Subcategory struct {
 	Name             string           `bson:"name,omitempty" json:"name,omitempty"`
-	SubSubcategories []SubSubcategory `bson:"sub_subcategories,omitempty" json:"sub_subcategories,omitempty"`
+	SubSubcategories []SubSubcategory `bson:"Sub subcategories,omitempty" json:"Sub subcategories,omitempty"`
 }
 
 // Category represents a category that may contain subcategories
@@ -54,12 +60,6 @@ type Type struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Name       string             `bson:"name,omitempty" json:"name,omitempty"`
 	Categories []TypeCategory     `bson:"categories,omitempty" json:"categories,omitempty"`
-}
-
-type MaterialCategory struct {
-	Category       string `bson:"Category,omitempty" json:"Category,omitempty"`
-	Subcategory    string `bson:"Subcategory,omitempty" json:"Subcategory,omitempty"`
-	SubSubcategory string `bson:"SubSubcategory,omitempty" json:"SubSubcategory,omitempty"`
 }
 
 type ChangeSet struct {

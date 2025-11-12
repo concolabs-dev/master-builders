@@ -11,13 +11,6 @@ import (
 	"net/http"
 )
 
-type ExchangeRateResponse struct {
-	Result             string             `json:"result"`
-	TimeLastUpdateUnix int64              `json:"time_last_update_unix"`
-	BaseCode           string             `json:"base_code"`
-	ConversionRates    map[string]float64 `json:"conversion_rates"`
-}
-
 func StartExchangeRateUpdater() {
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
@@ -38,7 +31,7 @@ func UpdateExchangeRates() {
 	}
 	defer resp.Body.Close()
 
-	var result ExchangeRateResponse
+	var result model.ExchangeRateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Println("Error decoding exchange rate response:", err)
 		return
