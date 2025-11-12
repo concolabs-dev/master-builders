@@ -58,18 +58,19 @@ func RegisterRoutes(router *gin.Engine) {
 
 	//professionals routes
 	router.POST("/professionals", auth.RequireOwnership("professional"), handlers.CreateProfessional)
-	router.GET("/professionals", handlers.GetAllProfessionals)
+	router.GET("/professionals", handlers.GetApprovedProfessionals)
+	router.GET("/professionals-all", handlers.GetAllProfessionals)
 	router.GET("/professionals/:id", handlers.GetProfessionalByID)
 	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
 	router.GET("/professionals/email/:email", handlers.GetProfessionalByEmail)
-	router.PUT("/professionals/:id", auth.RequireOwnership("professional"), handlers.UpdateProfessional)
+	router.PUT("/professionals/:id", auth.RequireOwnershipOrRoles("professional", "admin"), handlers.UpdateProfessional)
 	// router.DELETE("/professionals/:id", auth.RequireOwnership("professional"), handlers.DeleteProfessional)
 	router.DELETE(
 		"/professionals/:id",
 		auth.RequireOwnershipOrRoles("professional", "admin"),
 		handlers.DeleteProfessional,
 	)
-	router.GET("/admin/professionals/all", handlers.GetAllProfessionals)
+	router.GET("/admin/professionals/all", handlers.GetApprovedProfessionals)
 	router.GET("/professionals/search", handlers.SearchProfessionals)         // Search professionals
 	router.GET("/professionals/filter", handlers.GetProfessionalsWithFilters) // Filter professionals
 	router.GET("/professionals/types", handlers.GetProfessionalTypes)         // Get all professional types
@@ -80,7 +81,7 @@ func RegisterRoutes(router *gin.Engine) {
 	// router.PUT("/projects/:id", handlers.UpdateProject)                  // Update a project
 	// router.DELETE("/projects/:id", handlers.DeleteProject)               // Delete a project
 
-	//materials routes
+	//projects routes
 	router.POST("/projects", handlers.CreateProject)                                    // Create a new project
 	router.GET("/projects", handlers.GetProjects)                                       // Get all projects
 	router.GET("/projects/filter", handlers.GetProjectsWithFilters)                     // Get projects with filters

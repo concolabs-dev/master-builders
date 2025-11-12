@@ -182,7 +182,7 @@ func UpdateType(c *gin.Context) {
 			}
 
 			// Run the UpdateMany for this change
-			result, err := db.Collection.UpdateMany(sessCtx, filter, materialUpdate)
+			result, err := db.MaterialCollection.UpdateMany(sessCtx, filter, materialUpdate)
 			if err != nil {
 				log.Printf("[ERROR-TXN] Failed to migrate materials: %v\n", err)
 				return nil, fmt.Errorf("failed to migrate materials for category '%s': %w", change.Old.Category, err)

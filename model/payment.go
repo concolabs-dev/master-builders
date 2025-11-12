@@ -31,7 +31,7 @@ type TransactionWebhook struct {
 	Amount        int64     `json:"amount"         validate:"required"`
 }
 
-// PaymentRecord represents the main model.
+// Use PaymentRecordReponse insted of this when use payment response
 type PaymentRecord struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	SupplierPID string             `bson:"Supplierpid" json:"Supplierpid"`
@@ -39,4 +39,11 @@ type PaymentRecord struct {
 	Payments    []Payment          `bson:"Payments" json:"Payments"`
 	Deleted     bool               `bson:"Deleted" json:"Deleted"`
 	PackageName string             `bson:"package_name" json:"package_name"`
+}
+
+type ErrorItem struct {
+	Field   string      `json:"field,omitempty"`
+	Code    string      `json:"code"`
+	Message string      `json:"message"`
+	Detail  interface{} `json:"detail,omitempty"`
 }

@@ -24,6 +24,7 @@ type Professional struct {
 	CompanyLogoUrl               string             `bson:"company_logo_url" json:"company_logo_url"`
 	CoverImageURL                string             `bson:"cover_image_url" json:"cover_image_url"`
 	PID                          string             `bson:"pid" json:"pid"` // Using PID similar to Suppliers
+	Status                       string             `bson:"status" json:"status"`
 }
 
 // ProfessionalPaymentRecord represents payment records for professionals
@@ -44,4 +45,14 @@ type Project struct {
 	Description string             `bson:"description" json:"description"`
 	Images      []string           `bson:"images" json:"images"`
 	PID         string             `bson:"pid" json:"pid"` // PID of the associated Professional
+}
+
+type ProfessionalWithRecord struct {
+	Professional Professional              `json:"professional" bson:"professional"`
+	Record       ProfessionalPaymentRecord `json:"record" bson:"record"`
+}
+
+type ProfessionalWithRecordResponse struct {
+	Professional Professional         `json:"professional" bson:"professional"`
+	Record       PaymentRecordReponse `json:"record" bson:"record"`
 }
