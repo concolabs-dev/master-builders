@@ -17,30 +17,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
+	"context"
+	"net/url"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"material-api/db"
+	"material-api/model"
 )
 
 const MaxBodyBytes int64 = 64 << 10 // 65536
 
-type TransactionWebhook struct {
-	Type          string    `json:"type"           validate:"required"`
-	TransactionID string    `json:"transaction_id" validate:"required"`
-	Status        string    `json:"status"         validate:"required"`
-	UserID        string    `json:"puid"           validate:"required"`
-	PackageName   string    `json:"package_name"   validate:"required"`
-	Timestamp     time.Time `json:"timestamp"      validate:"required"`
-	Amount        int64     `json:"amount"         validate:"required"`
-}
-
-type errorItem struct {
-	Field   string      `json:"field,omitempty"`
-	Code    string      `json:"code"`
-	Message string      `json:"message"`
-	Detail  interface{} `json:"detail,omitempty"`
-}
-
 func respondError(c *gin.Context, status int, code, msg string, detail interface{}) {
 	c.JSON(status, gin.H{
-		"error": errorItem{
+		"error": model.ErrorItem{
 			Code:    code,
 			Message: msg,
 			Detail:  detail,
@@ -48,6 +40,157 @@ func respondError(c *gin.Context, status int, code, msg string, detail interface
 		"time": time.Now().UTC(),
 	})
 }
+
+func CreatePaymentRecord(c *gin.Context) {
+	var record model.PaymentRecord
+	if err := c.ShouldBindJSON(&record); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
+
+	// Set a new ObjectID for the record.
+	record.ID = primitive.NewObjectID()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := db.PaymentRecordCollection.InsertOne(ctx, record)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment record"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, record)
+}
+func GetPaymentRecords(c *gin.Context) {
+	var records []model.PaymentRecordReponse
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Only return records that are not marked as deleted.
+	cursor, err := db.PaymentRecordCollection.Find(ctx, bson.M{"Deleted": false})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var record model.PaymentRecord
+		if err := cursor.Decode(&record); err != nil {
+			continue // Skip problematic entries.
+		}
+		res := model.PaymentRecordReponse{
+			ID:       record.ID,
+			PID:      record.SupplierPID,
+			Approved: record.Approved,
+			Deleted:  record.Deleted,
+		}
+		records = append(records, res)
+	}
+
+	c.JSON(http.StatusOK, records)
+}
+
+func GetPaymentRecordByID(c *gin.Context) {
+	raw := c.Param("pid") // e.g. "\"google-oauth2|101...\""
+	unescaped, _ := url.PathUnescape(raw)
+	pid := strings.Trim(unescaped, "\"") // remove any surrounding quotes
+	typeParam := c.Param("type")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	switch typeParam {
+	case "supplier":
+		var record model.PaymentRecord
+		err := db.PaymentRecordCollection.FindOne(ctx, bson.M{"Supplierpid": pid, "Deleted": false}).Decode(&record)
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found"})
+			return
+		}
+		res := model.PaymentRecordReponse{
+			ID:       record.ID,
+			PID:      record.SupplierPID,
+			Approved: record.Approved,
+			Deleted:  record.Deleted,
+		}
+		c.JSON(http.StatusOK, res)
+		return
+
+	case "professional":
+		var record model.ProfessionalPaymentRecord
+
+		err := db.ProfessionalPaymentRecordCollection.FindOne(
+			ctx,
+			bson.M{"professional_pid": pid, "deleted": false},
+		).Decode(&record)
+
+		if err != nil {
+			log.Printf("Payment record not found: %s, error: %v", pid, err)
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "payment record not found for pid : " + pid})
+			return
+		}
+		res := model.PaymentRecordReponse{
+			ID:       record.ID,
+			PID:      record.ProfessionalPID,
+			Approved: record.Approved,
+			Deleted:  record.Deleted,
+		}
+		c.JSON(http.StatusOK, res)
+		return
+	}
+
+}
+func UpdatePaymentRecord(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	var updateData map[string]interface{}
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{"$set": updateData}
+	_, err = db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update payment record"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Payment record updated successfully"})
+}
+func DeletePaymentRecord(c *gin.Context) {
+	idParam := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Soft delete by setting the Deleted field to true.
+	update := bson.M{"$set": bson.M{"Deleted": true}}
+	_, err = db.PaymentRecordCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete payment record"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Payment record deleted successfully"})
+}
+
 
 func HandleWebhook(c *gin.Context) {
 	start := time.Now()
@@ -102,7 +245,7 @@ func HandleWebhook(c *gin.Context) {
 	}
 
 	// 4) Decode JSON with helpful errors
-	var req TransactionWebhook
+	var req model.TransactionWebhook
 	if err := json.Unmarshal(body, &req); err != nil {
 		var ute *json.UnmarshalTypeError
 		var se *json.SyntaxError
@@ -132,9 +275,9 @@ func HandleWebhook(c *gin.Context) {
 		var verrs validator.ValidationErrors
 		if errors.As(err, &verrs) {
 			log.Printf("requestId=%s error=validation_failed count=%d", reqID, len(verrs))
-			out := make([]errorItem, 0, len(verrs))
+			out := make([]model.ErrorItem, 0, len(verrs))
 			for _, fe := range verrs {
-				out = append(out, errorItem{
+				out = append(out, model.ErrorItem{
 					Field:   fe.Field(),
 					Code:    fe.Tag(),
 					Message: fmt.Sprintf("%s is %s", fe.Field(), fe.Tag()),
@@ -172,7 +315,7 @@ func HandleWebhook(c *gin.Context) {
 			}
 			log.Printf("supplier requestId=%s info=package_set userId=%s package=%s", reqID, req.UserID, req.PackageName)
 
-			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, true); err != nil {
+			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, true, "active"); err != nil {
 				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=true detail=%v", reqID, req.UserID, err)
 				respondError(c, http.StatusInternalServerError, "approve_status_failed",
 					"Could not update approved status", err.Error())
@@ -189,7 +332,7 @@ func HandleWebhook(c *gin.Context) {
 			log.Printf("supplier requestId=%s info=payment_appended userId=%s", reqID, req.UserID)
 
 		case "invoice.payment_failed":
-			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, false, "pending"); err != nil {
 				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
 				respondError(c, http.StatusInternalServerError, "approve_status_failed",
 					"Could not update approved status", err.Error())
@@ -198,7 +341,7 @@ func HandleWebhook(c *gin.Context) {
 			log.Printf("supplier requestId=%s event=invoice.payment_failed transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
 
 		case "transaction.status_updated":
-			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+			if err := UpdateSupplierPaymentRecordApprovedStatus(req.UserID, false, "pending"); err != nil {
 				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
 				respondError(c, http.StatusInternalServerError, "approve_status_failed",
 					"Could not update approved status", err.Error())
@@ -235,7 +378,7 @@ func HandleWebhook(c *gin.Context) {
 			}
 			log.Printf("requestId=%s info=package_set userId=%s package=%s", reqID, req.UserID, req.PackageName)
 
-			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, true); err != nil {
+			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, true, "approved"); err != nil {
 				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=true detail=%v", reqID, req.UserID, err)
 				respondError(c, http.StatusInternalServerError, "approve_status_failed",
 					"Could not update approved status", err.Error())
@@ -252,7 +395,7 @@ func HandleWebhook(c *gin.Context) {
 			log.Printf("requestId=%s info=payment_appended userId=%s", reqID, req.UserID)
 
 		case "invoice.payment_failed":
-			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false, "pending"); err != nil {
 				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
 				respondError(c, http.StatusInternalServerError, "approve_status_failed",
 					"Could not update approved status", err.Error())
@@ -261,7 +404,7 @@ func HandleWebhook(c *gin.Context) {
 			log.Printf("requestId=%s event=invoice.payment_failed transactionId=%s userId=%s", reqID, req.TransactionID, req.UserID)
 
 		case "transaction.status_updated":
-			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false); err != nil {
+			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, false, "pending"); err != nil {
 				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=false detail=%v", reqID, req.UserID, err)
 				respondError(c, http.StatusInternalServerError, "approve_status_failed",
 					"Could not update approved status", err.Error())

@@ -10,7 +10,13 @@ import (
 type Category struct {
 	Category       string  `bson:"Category" json:"Category"`
 	Subcategory    *string `bson:"Subcategory,omitempty" json:"Subcategory,omitempty"`
-	SubSubcategory *string `bson:"SubSubcategory,omitempty" json:"SubSubcategory,omitempty"`
+	SubSubcategory *string `bson:"Sub subcategory,omitempty" json:"Sub subcategory,omitempty"`
+}
+
+type MaterialCategory struct {
+	Category       string `bson:"Category,omitempty" json:"Category,omitempty"`
+	Subcategory    string `bson:"Subcategory,omitempty" json:"Subcategory,omitempty"`
+	SubSubcategory string `bson:"Sub subcategory,omitempty" json:"Sub subcategory,omitempty"`
 }
 
 // Material struct
@@ -40,11 +46,11 @@ type SubSubcategory struct {
 // Subcategory represents a subcategory that may contain sub-subcategories
 type Subcategory struct {
 	Name             string           `bson:"name,omitempty" json:"name,omitempty"`
-	SubSubcategories []SubSubcategory `bson:"sub_subcategories,omitempty" json:"sub_subcategories,omitempty"`
+	SubSubcategories []SubSubcategory `bson:"Sub subcategories,omitempty" json:"Sub subcategories,omitempty"`
 }
 
 // Category represents a category that may contain subcategories
-type typeCategory struct {
+type TypeCategory struct {
 	Name          string        `bson:"name,omitempty" json:"name,omitempty"`
 	Subcategories []Subcategory `bson:"subcategories,omitempty" json:"subcategories,omitempty"`
 }
@@ -53,7 +59,12 @@ type typeCategory struct {
 type Type struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Name       string             `bson:"name,omitempty" json:"name,omitempty"`
-	Categories []typeCategory     `bson:"categories,omitempty" json:"categories,omitempty"`
+	Categories []TypeCategory     `bson:"categories,omitempty" json:"categories,omitempty"`
+}
+
+type ChangeSet struct {
+	Old MaterialCategory
+	New MaterialCategory
 }
 
 type CurrencyDocument struct {
@@ -78,6 +89,7 @@ type ConversionRates struct {
 	SGD float64 `bson:"SGD"`
 	AED float64 `bson:"AED"`
 	BRL float64 `bson:"BRL"`
+	LKR float64 `bson:"LKR"`
 }
 
 // supplier
@@ -93,6 +105,17 @@ type Supplier struct {
 	Location      Location           `bson:"location" json:"location"`
 	ProfilePicURL string             `bson:"profile_pic_url" json:"profile_pic_url"`
 	CoverPicURL   string             `bson:"cover_pic_url" json:"cover_pic_url"`
+	Status        string             `bson:"status" json:"status"`
+}
+
+type SupplierWithRecord struct {
+	Supplier Supplier        `json:"supplier" bson:"supplier"`
+	Record   PaymentRecord `json:"record" bson:"record"`
+}
+
+type SupplierWithRecordResponse struct {
+	Supplier Supplier        `json:"supplier" bson:"supplier"`
+	Record   PaymentRecordReponse `json:"record" bson:"record"`
 }
 
 type Location struct {
@@ -113,20 +136,6 @@ type Item struct {
 	Unit        string             `bson:"unit" json:"unit"`
 	Price       float64            `bson:"price" json:"price"`
 	ImgUrl      string             `bson:"imgUrl" json:"imgUrl"`
-}
-type Payment struct {
-	Month       time.Time `bson:"Month" json:"Month"`
-	Amount      float64   `bson:"Amount" json:"Amount"`
-	PaymentDate time.Time `bson:"paymentDate" json:"paymentDate"`
-}
-
-// PaymentRecord represents the main model.
-type PaymentRecord struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	SupplierPID string             `bson:"Supplierpid" json:"Supplierpid"`
-	Approved    bool               `bson:"Approved" json:"Approved"`
-	Payments    []Payment          `bson:"Payments" json:"Payments"`
-	Deleted     bool               `bson:"Deleted" json:"Deleted"`
 }
 
 // package main
