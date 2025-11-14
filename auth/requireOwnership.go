@@ -213,7 +213,7 @@ func RequireOwnership(resourceType string) gin.HandlerFunc {
 						return
 					}
 					// comparing both DB and body
-					isOwner = dbItem.SupplierPid == userID && reqItem.SupplierPid == userID
+					isOwner = dbItem.SupplierPid == userID
 					if !isOwner {
 						log.Printf("User %s is not the owner of item (PUT) (DB owner: %s, Body owner: %s)", userID, dbItem.SupplierPid, reqItem.SupplierPid)
 					}
