@@ -2,7 +2,7 @@ name: Deploy to Droplet Prod
 
 on:
   push:
-    branches: [ "test" ]
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -26,10 +26,10 @@ jobs:
     - name: Copy binary to server
       uses: appleboy/scp-action@v0.1.7
       with:
-        host: ${{ secrets.EC2_HOST_TEST }}
-        username: ${{ secrets.EC2_USER_TEST }}
-        port: ${{ secrets.EC2_PORT_TEST }}
-        key: ${{ secrets.EC2_PEM_KEY_TEST }}
+        host: ${{ secrets.DROPLET_HOST }}
+        username: ${{ secrets.DROPLET_USER }}
+        port: ${{ secrets.DROPLET_PORT }}
+        key: ${{ secrets.DROPLET_SECRET }}
         source: "bin/build-market-backend"
         target: "~/deploy/"
 
@@ -37,10 +37,10 @@ jobs:
     - name: Restart service on server
       uses: appleboy/ssh-action@v1.1.0
       with:
-        host: ${{ secrets.EC2_HOST_TEST }}
-        username: ${{ secrets.EC2_USER_TEST }}
-        port: ${{ secrets.EC2_PORT_TEST }}
-        key: ${{ secrets.EC2_PEM_KEY_TEST }}
+        host: ${{ secrets.DROPLET_HOST }}
+        username: ${{ secrets.DROPLET_USER }}
+        port: ${{ secrets.DROPLET_PORT }}
+        key: ${{ secrets.DROPLET_SECRET }}
         script: |
           # Ensure deploy directory exists
           mkdir -p ~/deploy
@@ -52,6 +52,6 @@ jobs:
 
           # Reload systemd and restart the service
           sudo systemctl daemon-reload
-          sudo systemctl restart build-market-backend
-          sudo systemctl status build-market-backend --no-pager
+          sudo systemctl restart material-api
+          sudo systemctl status material-api --no-pager
 
