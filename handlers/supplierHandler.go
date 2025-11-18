@@ -62,7 +62,7 @@ func GetSupplierByPPID(c *gin.Context) {
 	var supplier model.Supplier
 	log.Printf("[DEBUG] Fetching supplier with pid=%s from database", pid)
 	filter := bson.M{
-		"pid":    pid,
+		"pid": pid,
 	}
 	err := db.SupplierCollection.FindOne(ctx, filter).Decode(&supplier)
 
@@ -538,7 +538,8 @@ func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool, status 
 		return fmt.Errorf("database error while adding a payment status")
 	}
 
-	_, err = db.SupplierCollection.UpdateOne(ctx, bson.M{"pid": id}, status)
+	statusUpdate := bson.M{"$set": bson.M{"status": status}}
+	_, err = db.SupplierCollection.UpdateOne(ctx, bson.M{"pid": id}, statusUpdate)
 	if err != nil {
 		log.Printf("[ERROR] Database error while updating Approved status for Supplierpid=%s: %v", id, err)
 		return fmt.Errorf("database error while adding a payment status")

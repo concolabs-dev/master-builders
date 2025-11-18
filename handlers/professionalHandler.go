@@ -297,7 +297,7 @@ func GetProfessionalByEmail(c *gin.Context) {
 	defer cancel()
 
 	filter := bson.M{
-		"email":  email,
+		"email": email,
 	}
 
 	err := db.ProfessionalCollection.FindOne(ctx, filter).Decode(&professional)
@@ -580,7 +580,9 @@ func UpdateProfessionalPaymentRecordApprovedStatus(id string, approved bool, sta
 		log.Printf("[ERROR] Database error while updating Approved status for professional_pid=%s: %v", id, err)
 		return fmt.Errorf("database error while adding a payment status")
 	}
-	_, err = db.ProfessionalCollection.UpdateOne(ctx, bson.M{"pid": id}, status)
+
+	statusUpdate := bson.M{"$set": bson.M{"status": status}}
+	_, err = db.ProfessionalCollection.UpdateOne(ctx, bson.M{"pid": id}, statusUpdate)
 	if err != nil {
 		return fmt.Errorf("database error while adding a payment status")
 	}
