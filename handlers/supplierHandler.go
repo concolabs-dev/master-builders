@@ -62,7 +62,7 @@ func GetSupplierByPPID(c *gin.Context) {
 	var supplier model.Supplier
 	log.Printf("[DEBUG] Fetching supplier with pid=%s from database", pid)
 	filter := bson.M{
-		"pid":    pid,
+		"pid": pid,
 	}
 	err := db.SupplierCollection.FindOne(ctx, filter).Decode(&supplier)
 
@@ -101,17 +101,48 @@ func CreateSupplier(c *gin.Context) {
 		return
 	}
 
-	// Set the supplier ID.
-	supplier.ID = primitive.NewObjectID()
-	log.Printf("[DEBUG] Assigned new ObjectID=%s for supplier PID=%s", supplier.ID.Hex(), supplier.PID)
-
 	// Create a context.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Duplicate Check Logic
+	filter := bson.M{"email": supplier.Email}
+	log.Printf("[DEBUG] CreateSupplier: Checking duplicates for Email: %s", supplier.Email)
+
+	if supplier.PID != "" {
+		log.Printf("[DEBUG] CreateSupplier: PID provided (%s), checking Email OR PID", supplier.PID)
+		filter = bson.M{
+			"$or": []bson.M{
+				{"email": supplier.Email},
+				{"pid": supplier.PID},
+			},
+		}
+	}
+
+	count, err := db.SupplierCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		log.Printf("[ERROR] CreateSupplier: Database error checking duplicates: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking for existing user"})
+		return
+	}
+
+	if count > 0 {
+		log.Printf("[WARN] CreateSupplier: Duplicate user attempted (Email: %s, PID: %s)", supplier.Email, supplier.PID)
+		c.JSON(http.StatusConflict, gin.H{"error": "Supplier with this Email or PID already exists"})
+		return
+	}
+
+	// Set the supplier ID.
+	supplier.ID = primitive.NewObjectID()
+	supplier.Status = "pending"
+	if supplier.PID == "" {
+        supplier.PID = primitive.NewObjectID().Hex()
+    }
+    log.Printf("[DEBUG] Assigned new ObjectID=%s and PID=%s", supplier.ID.Hex(), supplier.PID)
+
 	// Insert the supplier into the database.
 	log.Printf("[DEBUG] Inserting supplier PID=%s into SupplierCollection", supplier.PID)
-	_, err := db.SupplierCollection.InsertOne(ctx, supplier)
+	_, err = db.SupplierCollection.InsertOne(ctx, supplier)
 	if err != nil {
 		log.Printf("[ERROR] Failed to create supplier PID=%s: %v", supplier.PID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create supplier"})
@@ -538,7 +569,8 @@ func UpdateSupplierPaymentRecordApprovedStatus(id string, approved bool, status 
 		return fmt.Errorf("database error while adding a payment status")
 	}
 
-	_, err = db.SupplierCollection.UpdateOne(ctx, bson.M{"pid": id}, status)
+	statusUpdate := bson.M{"$set": bson.M{"status": status}}
+	_, err = db.SupplierCollection.UpdateOne(ctx, bson.M{"pid": id}, statusUpdate)
 	if err != nil {
 		log.Printf("[ERROR] Database error while updating Approved status for Supplierpid=%s: %v", id, err)
 		return fmt.Errorf("database error while adding a payment status")
