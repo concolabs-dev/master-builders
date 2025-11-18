@@ -29,7 +29,7 @@ jobs:
         host: ${{ secrets.DROPLET_HOST }}
         username: ${{ secrets.DROPLET_USER }}
         port: ${{ secrets.DROPLET_PORT }}
-        key: ${{ secrets.DROPLET_SECRET }}
+        password: ${{ secrets.DROPLET_SECRET }}
         source: "bin/build-market-backend"
         target: "~/deploy/"
 
@@ -40,7 +40,7 @@ jobs:
         host: ${{ secrets.DROPLET_HOST }}
         username: ${{ secrets.DROPLET_USER }}
         port: ${{ secrets.DROPLET_PORT }}
-        key: ${{ secrets.DROPLET_SECRET }}
+        password: ${{ secrets.DROPLET_SECRET }}
         script: |
           # Ensure deploy directory exists
           mkdir -p ~/deploy
