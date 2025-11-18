@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/microcosm-cc/bluemonday"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -93,6 +95,27 @@ func CreateSupplier(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
 		return
 	}
+
+	// Initialize policies
+    strict := bluemonday.StrictPolicy()
+    ugc := bluemonday.UGCPolicy()
+
+    // 1. Standardize Critical Fields (Email & PID)
+    // CRITICAL FIX: Sanitize email first to strip tags, then trim, then lowercase
+    supplier.Email = strict.Sanitize(supplier.Email) 
+    supplier.Email = strings.ToLower(strings.TrimSpace(supplier.Email))
+    supplier.PID = strings.TrimSpace(supplier.PID)
+
+    // 2. Sanitize Plain Text Fields (Strict Policy - No HTML Expected)
+    supplier.BusinessName = strict.Sanitize(supplier.BusinessName)
+    supplier.Telephone = strict.Sanitize(supplier.Telephone)
+    supplier.EmailGiven = strict.Sanitize(supplier.EmailGiven) // Assuming this is an alternative contact email
+    supplier.Address = strict.Sanitize(supplier.Address)
+    supplier.ProfilePicURL = strict.Sanitize(supplier.ProfilePicURL)
+    supplier.CoverPicURL = strict.Sanitize(supplier.CoverPicURL)
+
+    // 3. Sanitize Rich Text Fields (UGC Policy - Allows safe formatting)
+    supplier.BusinessDesc = ugc.Sanitize(supplier.BusinessDesc)
 
 	// Validate location.
 	if supplier.Location.Latitude == 0 && supplier.Location.Longitude == 0 {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	// Import your models package or adjust as needed
+	"github.com/microcosm-cc/bluemonday"
 	"material-api/auth"
 	"material-api/db"
 	"material-api/model"
@@ -29,6 +30,45 @@ func CreateProfessional(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
 		return
 	}
+
+    // Initialize policies
+    // 'strict' removes ALL HTML tags (for names, titles, IDs)
+    // 'ugc' allows safe HTML like <b>, <i>, <ul> (for descriptions)
+    strict := bluemonday.StrictPolicy()
+    ugc := bluemonday.UGCPolicy()
+
+    // 1. Standardize Critical Fields
+    professional.Email = strict.Sanitize(professional.Email)
+    professional.PID = strings.TrimSpace(professional.PID)
+    professional.Website = strict.Sanitize(professional.Website)
+
+    // 2. Sanitize Single String Fields
+    professional.CompanyName = strict.Sanitize(professional.CompanyName)
+    professional.CompanyType = strict.Sanitize(professional.CompanyType)
+    professional.Address = strict.Sanitize(professional.Address)
+    professional.TelephoneNumber = strict.Sanitize(professional.TelephoneNumber)
+    
+    // Sanitize URLs to ensure no <script> injection, though they should be validated as URLs too
+    professional.CompanyLogoUrl = strict.Sanitize(professional.CompanyLogoUrl)
+    professional.CoverImageURL = strict.Sanitize(professional.CoverImageURL)
+
+    // 3. Sanitize Rich Text Fields (Description)
+    // Allows formatted text but removes malicious scripts
+    professional.CompanyDescription = ugc.Sanitize(professional.CompanyDescription)
+
+    // 4. Sanitize String Arrays (Slices)
+    // We must loop through them to sanitize each item
+    for i := range professional.Specializations {
+        professional.Specializations[i] = strict.Sanitize(professional.Specializations[i])
+    }
+
+    for i := range professional.ServicesOffered {
+        professional.ServicesOffered[i] = strict.Sanitize(professional.ServicesOffered[i])
+    }
+
+    for i := range professional.CertificationsAccreditations {
+        professional.CertificationsAccreditations[i] = strict.Sanitize(professional.CertificationsAccreditations[i])
+    }
 
 	// 2. Create Context
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
