@@ -23,13 +23,13 @@ type PaymentRecordReponse struct {
 
 // add validate:"required" to required fields
 type TransactionWebhook struct {
-	Type          string    `json:"type"           `
-	TransactionID string    `json:"transaction_id" `
-	Status        string    `json:"status"         `
-	UserID        string    `json:"puid"`
-	PackageName   string    `json:"package_name"   `
-	Timestamp     time.Time `json:"timestamp"      `
-	Amount        int64     `json:"amount"         `
+	Type          string    `json:"type"            `
+	TransactionID string    `json:"transaction_id"  `
+	Status        string    `json:"status"          `
+	UserID        string    `json:"puid"            `
+	PackageName   string    `json:"package_name"    `
+	Timestamp     time.Time `json:"timestamp"       `
+	Amount        int64     `json:"amount"          `
 }
 
 // Use PaymentRecordReponse insted of this when use payment response

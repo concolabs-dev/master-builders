@@ -250,7 +250,11 @@ func GetProfessionalByEmail(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := db.ProfessionalCollection.FindOne(ctx, bson.M{"email": email}).Decode(&professional)
+	filter := bson.M{
+		"email": email,
+	}
+
+	err := db.ProfessionalCollection.FindOne(ctx, filter).Decode(&professional)
 	if err != nil {
 		log.Printf("[WARN] GetProfessionalByEmail: Not found (Email: %s)", email)
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Professional with email %s not found", email)})

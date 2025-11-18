@@ -202,7 +202,10 @@ func GetMaterialsByCategory(c *gin.Context) {
 
 // Create a new material
 func CreateMaterial(c *gin.Context) {
-	log.Println("[INFO] CreateMaterial called")
+	log.Println("==========================================")
+	log.Println("[INFO] CreateMaterial called - NEW HANDLER WITH PRICE COPYING")
+	log.Println("==========================================")
+
 	var material model.Material
 	if err := c.ShouldBindJSON(&material); err != nil {
 		log.Printf("[WARN] CreateMaterial: Invalid JSON payload: %v", err)
@@ -211,11 +214,68 @@ func CreateMaterial(c *gin.Context) {
 	}
 
 	material.ID = primitive.NewObjectID()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Log what we received
+	log.Printf("[DEBUG] CreateMaterial: Received material with %d price entries", len(material.Prices))
+
+	// ALWAYS fetch standard months from existing materials
+	log.Println("[INFO] CreateMaterial: Fetching standard months from existing materials")
+
+	var existingMaterial model.Material
+	err := db.MaterialCollection.FindOne(ctx, bson.M{
+		"Prices": bson.M{"$exists": true, "$ne": []interface{}{}},
+	}).Decode(&existingMaterial)
+
+	if err == nil && len(existingMaterial.Prices) > 0 {
+		log.Printf("[INFO] CreateMaterial: Found reference material with %d months", len(existingMaterial.Prices))
+
+		// Create a map of existing prices by date
+		existingPricesMap := make(map[string]interface{})
+		for _, priceEntry := range material.Prices {
+			if len(priceEntry) >= 2 {
+				if dateStr, ok := priceEntry[0].(string); ok {
+					existingPricesMap[dateStr] = priceEntry[1]
+				}
+			}
+		}
+
+		// Initialize new prices array with all standard months
+		material.Prices = make([][]interface{}, len(existingMaterial.Prices))
+		for i, priceEntry := range existingMaterial.Prices {
+			if len(priceEntry) >= 1 {
+				dateStr, ok := priceEntry[0].(string)
+				if !ok {
+					continue
+				}
+
+				// Use existing price if available, otherwise null
+				if price, exists := existingPricesMap[dateStr]; exists {
+					material.Prices[i] = []interface{}{dateStr, price}
+					log.Printf("[DEBUG] CreateMaterial: Month %s has existing price", dateStr)
+				} else {
+					material.Prices[i] = []interface{}{dateStr, nil}
+				}
+			}
+		}
+		log.Printf("[INFO] CreateMaterial: Initialized %d price months (merged with incoming data)", len(material.Prices))
+	} else {
+		// Fallback: No existing materials found
+		log.Println("[WARN] CreateMaterial: No existing materials found with prices")
+		if len(material.Prices) == 0 {
+			log.Println("[INFO] CreateMaterial: Creating default monthly structure")
+			material.Prices = generateDefaultPriceMonths()
+		} else {
+			log.Printf("[INFO] CreateMaterial: Using %d months from request", len(material.Prices))
+		}
+	}
+
+	log.Printf("[DEBUG] CreateMaterial: Final price count: %d", len(material.Prices))
 	log.Printf("[DEBUG] CreateMaterial: Attempting to insert new material with ID: %s", material.ID.Hex())
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_, err := db.MaterialCollection.InsertOne(ctx, material)
+	_, err = db.MaterialCollection.InsertOne(ctx, material)
 	if err != nil {
 		log.Printf("[ERROR] CreateMaterial: Could not insert material: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not insert material"})
@@ -224,6 +284,32 @@ func CreateMaterial(c *gin.Context) {
 
 	log.Printf("[INFO] CreateMaterial: Successfully created material: %s", material.ID.Hex())
 	c.JSON(http.StatusCreated, material)
+}
+
+// Helper function to generate default monthly price structure
+func generateDefaultPriceMonths() [][]interface{} {
+	// Start from June 2023 to current month + 6 months future
+	startDate := time.Date(2023, 6, 30, 0, 0, 0, 0, time.UTC)
+	currentDate := time.Now()
+	endDate := currentDate.AddDate(0, 6, 0)
+
+	var prices [][]interface{}
+
+	// Calculate number of months to prevent infinite loops
+	maxMonths := 100 // Safety limit
+	monthCount := 0
+
+	for d := startDate; d.Before(endDate) && monthCount < maxMonths; monthCount++ {
+		// Format date as "YYYY-MM-DD HH:MM:SS"
+		dateStr := d.Format("2006-01-02 15:04:05")
+		prices = append(prices, []interface{}{dateStr, nil})
+
+		// Move to next month (same day of next month)
+		d = d.AddDate(0, 1, 0)
+	}
+
+	log.Printf("[INFO] generateDefaultPriceMonths: Generated %d default months", len(prices))
+	return prices
 }
 
 // Update an existing material by its "Number" field
@@ -313,8 +399,8 @@ func UpdateMaterialCategory(ctx context.Context, oldCat model.Category, newCat m
 
 	// 1. Define the filter
 	filter := bson.M{
-		"Category.Category":       oldCat.Category,
-		"Category.Subcategory":    oldCat.Subcategory,
+		"Category.Category":        oldCat.Category,
+		"Category.Subcategory":     oldCat.Subcategory,
 		"Category.Sub subcategory": oldCat.SubSubcategory,
 	}
 	log.Printf("[DEBUG] UpdateMaterialCategory: Using filter: %v", filter)
@@ -322,8 +408,8 @@ func UpdateMaterialCategory(ctx context.Context, oldCat model.Category, newCat m
 	// 2. Define the update
 	update := bson.M{
 		"$set": bson.M{
-			"Category.Category":       newCat.Category,
-			"Category.Subcategory":    newCat.Subcategory,
+			"Category.Category":        newCat.Category,
+			"Category.Subcategory":     newCat.Subcategory,
 			"Category.Sub subcategory": newCat.SubSubcategory,
 		},
 	}
