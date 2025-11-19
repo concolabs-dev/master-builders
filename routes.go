@@ -37,8 +37,8 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/suppliers/pid/:pid", handlers.GetSupplierByPID)
 	router.GET("/suppliers/pid/napproved/:pid", handlers.GetSupplierByPPID)
 	router.GET("/suppliers/email/:email", handlers.GetSupplierByEmail)
-	router.PUT("/suppliers/:id", auth.RequireOwnershipOrRoles("supplier", "admin"), handlers.UpdateSupplier)
-	router.DELETE("/suppliers/:id", auth.RequireOwnershipOrRoles("supplier", "admin"), handlers.DeleteSupplier)
+	router.PUT("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.UpdateSupplier)
+	router.DELETE("/suppliers/:id", auth.RequireOwnership("supplier"), handlers.DeleteSupplier)
 	router.GET("/suppliers", handlers.GetApprovedSuppliers)
 
 	//items routes
@@ -63,11 +63,11 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/professionals/:id", handlers.GetProfessionalByID)
 	router.GET("/professionals/pid/:pid", handlers.GetProfessionalByPID)
 	router.GET("/professionals/email/:email", handlers.GetProfessionalByEmail)
-	router.PUT("/professionals/:id", auth.RequireOwnershipOrRoles("professional", "admin"), handlers.UpdateProfessional)
+	router.PUT("/professionals/:id", auth.RequireOwnership("professional"), handlers.UpdateProfessional)
 	// router.DELETE("/professionals/:id", auth.RequireOwnership("professional"), handlers.DeleteProfessional)
 	router.DELETE(
 		"/professionals/:id",
-		auth.RequireOwnershipOrRoles("professional", "admin"),
+		auth.RequireOwnership("professional"),
 		handlers.DeleteProfessional,
 	)
 	router.GET("/admin/professionals/all", handlers.GetApprovedProfessionals)
