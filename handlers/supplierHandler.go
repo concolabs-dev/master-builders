@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/microcosm-cc/bluemonday"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -94,6 +96,27 @@ func CreateSupplier(c *gin.Context) {
 		return
 	}
 
+	// Initialize policies
+    strict := bluemonday.StrictPolicy()
+    ugc := bluemonday.UGCPolicy()
+
+    // 1. Standardize Critical Fields (Email & PID)
+    // CRITICAL FIX: Sanitize email first to strip tags, then trim, then lowercase
+    supplier.Email = strict.Sanitize(supplier.Email) 
+    supplier.Email = strings.ToLower(strings.TrimSpace(supplier.Email))
+    supplier.PID = strings.TrimSpace(supplier.PID)
+
+    // 2. Sanitize Plain Text Fields (Strict Policy - No HTML Expected)
+    supplier.BusinessName = strict.Sanitize(supplier.BusinessName)
+    supplier.Telephone = strict.Sanitize(supplier.Telephone)
+    supplier.EmailGiven = strict.Sanitize(supplier.EmailGiven) // Assuming this is an alternative contact email
+    supplier.Address = strict.Sanitize(supplier.Address)
+    supplier.ProfilePicURL = strict.Sanitize(supplier.ProfilePicURL)
+    supplier.CoverPicURL = strict.Sanitize(supplier.CoverPicURL)
+
+    // 3. Sanitize Rich Text Fields (UGC Policy - Allows safe formatting)
+    supplier.BusinessDesc = ugc.Sanitize(supplier.BusinessDesc)
+
 	// Validate location.
 	if supplier.Location.Latitude == 0 && supplier.Location.Longitude == 0 {
 		log.Printf("[WARN] Invalid location data for supplier PID=%s", supplier.PID)
@@ -101,17 +124,48 @@ func CreateSupplier(c *gin.Context) {
 		return
 	}
 
-	// Set the supplier ID.
-	supplier.ID = primitive.NewObjectID()
-	log.Printf("[DEBUG] Assigned new ObjectID=%s for supplier PID=%s", supplier.ID.Hex(), supplier.PID)
-
 	// Create a context.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Duplicate Check Logic
+	filter := bson.M{"email": supplier.Email}
+	log.Printf("[DEBUG] CreateSupplier: Checking duplicates for Email: %s", supplier.Email)
+
+	if supplier.PID != "" {
+		log.Printf("[DEBUG] CreateSupplier: PID provided (%s), checking Email OR PID", supplier.PID)
+		filter = bson.M{
+			"$or": []bson.M{
+				{"email": supplier.Email},
+				{"pid": supplier.PID},
+			},
+		}
+	}
+
+	count, err := db.SupplierCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		log.Printf("[ERROR] CreateSupplier: Database error checking duplicates: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking for existing user"})
+		return
+	}
+
+	if count > 0 {
+		log.Printf("[WARN] CreateSupplier: Duplicate user attempted (Email: %s, PID: %s)", supplier.Email, supplier.PID)
+		c.JSON(http.StatusConflict, gin.H{"error": "Supplier with this Email or PID already exists"})
+		return
+	}
+
+	// Set the supplier ID.
+	supplier.ID = primitive.NewObjectID()
+	supplier.Status = "pending"
+	if supplier.PID == "" {
+        supplier.PID = primitive.NewObjectID().Hex()
+    }
+    log.Printf("[DEBUG] Assigned new ObjectID=%s and PID=%s", supplier.ID.Hex(), supplier.PID)
+
 	// Insert the supplier into the database.
 	log.Printf("[DEBUG] Inserting supplier PID=%s into SupplierCollection", supplier.PID)
-	_, err := db.SupplierCollection.InsertOne(ctx, supplier)
+	_, err = db.SupplierCollection.InsertOne(ctx, supplier)
 	if err != nil {
 		log.Printf("[ERROR] Failed to create supplier PID=%s: %v", supplier.PID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create supplier"})
