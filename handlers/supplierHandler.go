@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"material-api/auth"
 	"material-api/db"
@@ -97,25 +98,25 @@ func CreateSupplier(c *gin.Context) {
 	}
 
 	// Initialize policies
-    strict := bluemonday.StrictPolicy()
-    ugc := bluemonday.UGCPolicy()
+	strict := bluemonday.StrictPolicy()
+	ugc := bluemonday.UGCPolicy()
 
-    // 1. Standardize Critical Fields (Email & PID)
-    // CRITICAL FIX: Sanitize email first to strip tags, then trim, then lowercase
-    supplier.Email = strict.Sanitize(supplier.Email) 
-    supplier.Email = strings.ToLower(strings.TrimSpace(supplier.Email))
-    supplier.PID = strings.TrimSpace(supplier.PID)
+	// 1. Standardize Critical Fields (Email & PID)
+	// CRITICAL FIX: Sanitize email first to strip tags, then trim, then lowercase
+	supplier.Email = strict.Sanitize(supplier.Email)
+	supplier.Email = strings.ToLower(strings.TrimSpace(supplier.Email))
+	supplier.PID = strings.TrimSpace(supplier.PID)
 
-    // 2. Sanitize Plain Text Fields (Strict Policy - No HTML Expected)
-    supplier.BusinessName = strict.Sanitize(supplier.BusinessName)
-    supplier.Telephone = strict.Sanitize(supplier.Telephone)
-    supplier.EmailGiven = strict.Sanitize(supplier.EmailGiven) // Assuming this is an alternative contact email
-    supplier.Address = strict.Sanitize(supplier.Address)
-    supplier.ProfilePicURL = strict.Sanitize(supplier.ProfilePicURL)
-    supplier.CoverPicURL = strict.Sanitize(supplier.CoverPicURL)
+	// 2. Sanitize Plain Text Fields (Strict Policy - No HTML Expected)
+	supplier.BusinessName = strict.Sanitize(supplier.BusinessName)
+	supplier.Telephone = strict.Sanitize(supplier.Telephone)
+	supplier.EmailGiven = strict.Sanitize(supplier.EmailGiven) // Assuming this is an alternative contact email
+	supplier.Address = strict.Sanitize(supplier.Address)
+	supplier.ProfilePicURL = strict.Sanitize(supplier.ProfilePicURL)
+	supplier.CoverPicURL = strict.Sanitize(supplier.CoverPicURL)
 
-    // 3. Sanitize Rich Text Fields (UGC Policy - Allows safe formatting)
-    supplier.BusinessDesc = ugc.Sanitize(supplier.BusinessDesc)
+	// 3. Sanitize Rich Text Fields (UGC Policy - Allows safe formatting)
+	supplier.BusinessDesc = ugc.Sanitize(supplier.BusinessDesc)
 
 	// Validate location.
 	if supplier.Location.Latitude == 0 && supplier.Location.Longitude == 0 {
@@ -159,9 +160,9 @@ func CreateSupplier(c *gin.Context) {
 	supplier.ID = primitive.NewObjectID()
 	supplier.Status = "pending"
 	if supplier.PID == "" {
-        supplier.PID = primitive.NewObjectID().Hex()
-    }
-    log.Printf("[DEBUG] Assigned new ObjectID=%s and PID=%s", supplier.ID.Hex(), supplier.PID)
+		supplier.PID = primitive.NewObjectID().Hex()
+	}
+	log.Printf("[DEBUG] Assigned new ObjectID=%s and PID=%s", supplier.ID.Hex(), supplier.PID)
 
 	// Insert the supplier into the database.
 	log.Printf("[DEBUG] Inserting supplier PID=%s into SupplierCollection", supplier.PID)
@@ -498,7 +499,6 @@ func UpdateSupplier(c *gin.Context) {
 		return
 	}
 
-	// Use JSON binding for partial updates.
 	var updateData map[string]interface{}
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		log.Printf("[WARN] Invalid JSON data in UpdateSupplier for id=%s: %v", idParam, err)
@@ -506,22 +506,41 @@ func UpdateSupplier(c *gin.Context) {
 		return
 	}
 
-	// Remove the "id" field if present.
 	delete(updateData, "id")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	update := bson.M{"$set": updateData}
+
+	opts := options.FindOneAndUpdate()
+
+	opts.SetReturnDocument(options.After)
+
+	var updatedSupplier model.Supplier
+
 	log.Printf("[DEBUG] Updating supplier _id=%s with data=%v", objID.Hex(), updateData)
-	_, err = db.SupplierCollection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": updateData})
+
+	err = db.SupplierCollection.FindOneAndUpdate(
+		ctx,
+		bson.M{"_id": objID},
+		update,
+		opts,
+	).Decode(&updatedSupplier)
+
 	if err != nil {
-		log.Printf("[ERROR] Failed to update supplier id=%s: %v", idParam, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update supplier"})
+		if err == mongo.ErrNoDocuments {
+			log.Printf("[WARN] Supplier not found for ID: %s", idParam)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Supplier not found"})
+		} else {
+			log.Printf("[ERROR] Failed to update supplier id=%s: %v", idParam, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update supplier"})
+		}
 		return
 	}
 
 	log.Printf("[INFO] Supplier updated successfully id=%s", idParam)
-	c.JSON(http.StatusOK, gin.H{"message": "Supplier updated successfully"})
+	c.JSON(http.StatusOK, updatedSupplier)
 }
 
 // deleteSupplier removes a supplier by its ID.
