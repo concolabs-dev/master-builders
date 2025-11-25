@@ -109,12 +109,12 @@ type Supplier struct {
 }
 
 type SupplierWithRecord struct {
-	Supplier Supplier        `json:"supplier" bson:"supplier"`
+	Supplier Supplier      `json:"supplier" bson:"supplier"`
 	Record   PaymentRecord `json:"record" bson:"record"`
 }
 
 type SupplierWithRecordResponse struct {
-	Supplier Supplier        `json:"supplier" bson:"supplier"`
+	Supplier Supplier             `json:"supplier" bson:"supplier"`
 	Record   PaymentRecordReponse `json:"record" bson:"record"`
 }
 
@@ -136,6 +136,7 @@ type Item struct {
 	Unit        string             `bson:"unit" json:"unit"`
 	Price       float64            `bson:"price" json:"price"`
 	ImgUrl      string             `bson:"imgUrl" json:"imgUrl"`
+	Status      bool               `bson:"status" json:"status"`
 }
 
 // package main
