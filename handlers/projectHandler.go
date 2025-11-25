@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"material-api/db"
 	"material-api/model"
@@ -114,6 +116,7 @@ func GetProjectByID(c *gin.Context) {
 
 func UpdateProject(c *gin.Context) {
 	idParam := c.Param("id")
+
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
@@ -126,20 +129,34 @@ func UpdateProject(c *gin.Context) {
 		return
 	}
 
-	// Remove the "id" field if present
 	delete(updateData, "id")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	update := bson.M{"$set": updateData}
-	_, err = db.ProjectCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+
+	opts := options.FindOneAndUpdate()
+	opts.SetReturnDocument(options.After)
+
+	var updatedProject model.Project
+
+	err = db.ProjectCollection.FindOneAndUpdate(
+		ctx,
+		bson.M{"_id": objID},
+		update,
+		opts,
+	).Decode(&updatedProject)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update project"})
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update project"})
+		}
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Project updated successfully"})
+	c.JSON(http.StatusOK, updatedProject)
 }
 
 func DeleteProject(c *gin.Context) {
