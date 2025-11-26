@@ -19,6 +19,7 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/materials/filter", handlers.GetMaterialsByCategory)
 	router.POST("/materials", auth.RequireRoles("admin"), handlers.CreateMaterial)
 	router.PUT("/materials/:number", auth.RequireRoles("admin"), handlers.UpdateMaterial)
+	router.PUT("/materials/bulk", auth.RequireRoles("admin"), handlers.BulkMaterialUpdate)
 	router.DELETE("/materials/:id", auth.RequireRoles("admin"), handlers.DeleteMaterial)
 
 	//types routes
