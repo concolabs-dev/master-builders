@@ -54,53 +54,63 @@ func UpdateExchangeRates() {
 	}
 }
 
-func FindCategoryChanges(oldTree []model.TypeCategory, newTree []model.TypeCategory) []model.ChangeSet {
-	var changes []model.ChangeSet
+func FindTypeChanges(oldType model.Type, newType model.Type) []model.ChangeSet {
+    oldTree := oldType.Categories
+    newTree := newType.Categories
 
-	for i, newCat := range newTree {
-		if i >= len(oldTree) {
-			continue // This is a new L1 category, not a rename
-		}
-		oldCat := oldTree[i]
+    var changes []model.ChangeSet
+    // Check for Type name change once
+    typeRenamed := oldType.Name != newType.Name
 
-		for j, newSub := range newCat.Subcategories {
-			if j >= len(oldCat.Subcategories) {
-				continue // New L2, not a rename
-			}
-			oldSub := oldCat.Subcategories[j]
+    for i, newCat := range newTree {
+        // Skip new L1 categories
+        if i >= len(oldTree) {
+            continue
+        }
+        oldCat := oldTree[i]
 
-			for k, newSubSub := range newSub.SubSubcategories {
-				if k >= len(oldSub.SubSubcategories) {
-					continue // New L3, not a rename
-				}
-				oldSubSub := oldSub.SubSubcategories[k]
+        // --- L3 and L2 Checks ---
+        for j, newSub := range newCat.Subcategories {
+            // Skip new L2 categories
+            if j >= len(oldCat.Subcategories) {
+                continue
+            }
+            oldSub := oldCat.Subcategories[j]
 
-				// We found a potential L3 rename!
-				if oldSubSub.Name != newSubSub.Name {
-					changes = append(changes, model.ChangeSet{
-						Old: model.MaterialCategory{oldCat.Name, oldSub.Name, oldSubSub.Name},
-						New: model.MaterialCategory{newCat.Name, newSub.Name, newSubSub.Name},
-					})
-				}
-			} // end L3
+            // Check for L3 changes
+            for k, newSubSub := range newSub.SubSubcategories {
+                // Skip new L3 categories
+                if k >= len(oldSub.SubSubcategories) {
+                    continue
+                }
+                oldSubSub := oldSub.SubSubcategories[k]
 
-			// Check for L2 rename
-			if len(newSub.SubSubcategories) == 0 && oldSub.Name != newSub.Name {
-				changes = append(changes, model.ChangeSet{
-					Old: model.MaterialCategory{oldCat.Name, oldSub.Name, ""},
-					New: model.MaterialCategory{newCat.Name, newSub.Name, ""},
-				})
-			}
-		} // end L2
+                // Change Condition: L3 name changed OR Type name changed
+                if oldSubSub.Name != newSubSub.Name || typeRenamed {
+                    changes = append(changes, model.ChangeSet{
+                        Old: model.MaterialCategory{Type: oldType.Name, Category: oldCat.Name, Subcategory: oldSub.Name, SubSubcategory: oldSubSub.Name},
+                        New: model.MaterialCategory{Type: newType.Name, Category: newCat.Name, Subcategory: newSub.Name, SubSubcategory: newSubSub.Name},
+                    })
+                }
+            } // end L3
 
-		// Check for L1 rename
-		if len(newCat.Subcategories) == 0 && oldCat.Name != newCat.Name {
-			changes = append(changes, model.ChangeSet{
-				Old: model.MaterialCategory{oldCat.Name, "", ""},
-				New: model.MaterialCategory{newCat.Name, "", ""},
-			})
-		}
-	} // end L1
+            // Check for L2 rename (only if L2 has no children and its name changed, OR Type name changed)
+            if len(newSub.SubSubcategories) == 0 && (oldSub.Name != newSub.Name || typeRenamed) {
+                changes = append(changes, model.ChangeSet{
+                    Old: model.MaterialCategory{Type: oldType.Name, Category: oldCat.Name, Subcategory: oldSub.Name, SubSubcategory: ""},
+                    New: model.MaterialCategory{Type: newType.Name, Category: newCat.Name, Subcategory: newSub.Name, SubSubcategory: ""},
+                })
+            }
+        } // end L2
 
-	return changes
+        // Check for L1 rename (only if L1 has no children and its name changed, OR Type name changed)
+        if len(newCat.Subcategories) == 0 && (oldCat.Name != newCat.Name || typeRenamed) {
+            changes = append(changes, model.ChangeSet{
+                Old: model.MaterialCategory{Type: oldType.Name, Category: oldCat.Name, Subcategory: "", SubSubcategory: ""},
+                New: model.MaterialCategory{Type: newType.Name, Category: newCat.Name, Subcategory: "", SubSubcategory: ""},
+            })
+        }
+    } // end L1
+
+    return changes
 }

@@ -14,6 +14,7 @@ type Category struct {
 }
 
 type MaterialCategory struct {
+	Type		   string `bson:"Type,omitempty" json:"Type,omitempty"`
 	Category       string `bson:"Category,omitempty" json:"Category,omitempty"`
 	Subcategory    string `bson:"Subcategory,omitempty" json:"Subcategory,omitempty"`
 	SubSubcategory string `bson:"Sub subcategory,omitempty" json:"Sub subcategory,omitempty"`
