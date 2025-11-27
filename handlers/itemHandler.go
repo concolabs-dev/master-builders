@@ -9,6 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"material-api/db"
 	"material-api/model"
@@ -125,31 +127,55 @@ func GetItemsByMaterialID(c *gin.Context) {
 
 // updateItem updates an existing item by its ID.
 func UpdateItem(c *gin.Context) {
-	id := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
-		return
-	}
+    id := c.Param("id")
+    objID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+        return
+    }
 
-	var updateData map[string]interface{}
-	if err := c.ShouldBindJSON(&updateData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
-		return
-	}
-	// Remove the "id" field if it exists.
-	delete(updateData, "id")
+    var updateData map[string]interface{}
+    if err := c.ShouldBindJSON(&updateData); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON data"})
+        return
+    }
+    // Remove the "id" field if it exists.
+    delete(updateData, "id")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	update := bson.M{"$set": updateData}
-	_, err = db.ItemCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update item"})
-		return
-	}
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
 
-	c.JSON(http.StatusOK, gin.H{"message": "Item updated successfully"})
+    // 1. Prepare the update document
+    update := bson.M{"$set": updateData}
+
+    // 2. Define options for FindOneAndUpdate
+    opts := options.FindOneAndUpdate()
+    // Set ReturnDocument to After so it returns the document *after* the update.
+    opts.SetReturnDocument(options.After)
+
+    // 3. Declare a variable to hold the returned item
+    var updatedItem model.Item // Use a specific Item struct here if possible, otherwise interface{}
+
+    // 4. Use FindOneAndUpdate instead of UpdateOne
+    err = db.ItemCollection.FindOneAndUpdate(
+        ctx,
+        bson.M{"_id": objID},
+        update,
+        opts,
+    ).Decode(&updatedItem)
+
+    if err != nil {
+        // Handle case where item is not found or other errors
+        if err == mongo.ErrNoDocuments {
+            c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update item: " + err.Error()})
+        }
+        return
+    }
+
+    // 5. Return the decoded updated item
+    c.JSON(http.StatusOK, updatedItem)
 }
 
 // deleteItem deletes an item by its ID.

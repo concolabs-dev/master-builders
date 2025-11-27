@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"material-api/db"
 	"material-api/model"
@@ -357,6 +358,115 @@ func UpdateMaterial(c *gin.Context) {
 
 	log.Printf("[INFO] UpdateMaterial: Successfully updated material (Matched: %d, Modified: %d)", result.MatchedCount, result.ModifiedCount)
 	c.JSON(http.StatusOK, gin.H{"message": "Material updated successfully"})
+}
+
+func BulkMaterialUpdate(c *gin.Context) {
+	log.Println("[INFO] BulkMaterialUpdate called")
+
+	var requestPayload map[string]interface{}
+	if err := c.ShouldBindJSON(&requestPayload); err != nil {
+		log.Printf("[WARN] Invalid JSON payload received: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		return
+	}
+
+	action, ok := requestPayload["action"].(string)
+	if !ok || action == "" {
+		log.Printf("[WARN] Missing or invalid 'action' in payload: %v", requestPayload)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid 'action' parameter"})
+		return
+	}
+	log.Printf("[INFO] Attempting bulk action: %s", action)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var updateResult *mongo.UpdateResult
+	var err error
+
+	switch action {
+	case "add_new_month":
+
+		dateStr, dateOk := requestPayload["month_to_push"].(string)
+		if !dateOk || dateStr == "" {
+			log.Printf("[WARN] 'add_new_month': Missing 'month_to_push' parameter.")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "The 'add_new_month' action requires the 'month_to_push' parameter."})
+			return
+		}
+		log.Printf("[DEBUG] 'add_new_month': Target date to push: %s", dateStr)
+
+		newPriceEntry := []interface{}{dateStr, nil}
+
+		update := bson.M{
+			"$push": bson.M{
+				"Prices": newPriceEntry,
+			},
+		}
+
+		log.Println("[INFO] 'add_new_month': Executing UpdateMany (push to Prices array).")
+		updateResult, err = db.MaterialCollection.UpdateMany(
+			ctx,
+			bson.M{},
+			update,
+		)
+	case "bulk_delete_month":
+		dateStr, dateOk := requestPayload["month_to_delete"].(string)
+		if !dateOk || dateStr == "" {
+			log.Printf("[WARN] 'bulk_delete_month': Missing 'month_to_delete' parameter.")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "The 'bulk_delete_month' action requires the 'month_to_delete' parameter."})
+			return
+		}
+		log.Printf("[DEBUG] 'bulk_delete_month': Target date to delete: %s", dateStr)
+
+		// Use aggregation pipeline to filter out the matching date
+		update := bson.A{
+			bson.M{
+				"$set": bson.M{
+					"Prices": bson.M{
+						"$filter": bson.M{
+							"input": "$Prices",
+							"as":    "priceItem",
+							"cond": bson.M{
+								"$ne": bson.A{
+									bson.M{"$arrayElemAt": bson.A{"$$priceItem", 0}},
+									dateStr,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		log.Println("[INFO] 'bulk_delete_month': Executing UpdateMany (filter Prices array).")
+		updateResult, err = db.MaterialCollection.UpdateMany(
+			ctx,
+			bson.M{},
+			update,
+		)
+
+	default:
+		log.Printf("[WARN] Unknown bulk action requested: %s", action)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Unknown bulk action: %s", action)})
+		return
+	}
+
+	if err != nil {
+		log.Printf("[ERROR] Bulk update action '%s' failed due to DB error: %v", action, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to execute bulk update for %s", action)})
+		return
+	}
+
+	log.Printf("[INFO] Bulk action '%s' completed. Matched: %d, Modified: %d",
+		action,
+		updateResult.MatchedCount,
+		updateResult.ModifiedCount)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":        fmt.Sprintf("Bulk update action '%s' completed successfully.", action),
+		"modified_count": updateResult.ModifiedCount,
+		"matched_count":  updateResult.MatchedCount,
+	})
 }
 
 // Delete a material
