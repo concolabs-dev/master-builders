@@ -147,58 +147,63 @@ func GetMaterialByID(c *gin.Context) {
 
 // Get materials by category, subcategory, or sub-subcategory
 func GetMaterialsByCategory(c *gin.Context) {
-	category := c.Query("category")
-	subcategory := c.Query("subcategory")
-	subSubcategory := c.Query("subSubcategory")
-	log.Printf("[INFO] GetMaterialsByCategory called: category='%s', subcategory='%s', subSubcategory='%s'", category, subcategory, subSubcategory)
+    category := c.Query("category")
+    subcategory := c.Query("subcategory")
+    subSubcategory := c.Query("subSubcategory")
+    log.Printf("[INFO] GetMaterialsByCategory called: category='%s', subcategory='%s', subSubcategory='%s'", category, subcategory, subSubcategory)
 
-	if category == "" {
-		log.Println("[WARN] GetMaterialsByCategory: 'category' is required")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category is required"})
-		return
-	}
+    if category == "" {
+        log.Println("[WARN] GetMaterialsByCategory: 'category' is required")
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Category is required"})
+        return
+    }
 
-	// Build the query dynamically
-	filter := bson.M{"Category.Category": category}
+    // Build the query dynamically
+    // Use $regex with $options: "i" for case-insensitive matching
+    filter := bson.M{
+        "Category.Category": bson.M{"$regex": category, "$options": "i"},
+    }
 
-	if subcategory != "" {
-		filter["Category.Subcategory"] = subcategory
-	}
+    if subcategory != "" {
+        // Apply case-insensitive regex for subcategory
+        filter["Category.Subcategory"] = bson.M{"$regex": subcategory, "$options": "i"}
+    }
 
-	if subSubcategory != "" {
-		filter["Category.Sub subcategory"] = subSubcategory
-	}
-	log.Printf("[DEBUG] GetMaterialsByCategory: Using filter: %v", filter)
+    if subSubcategory != "" {
+        // Apply case-insensitive regex for subSubcategory
+        filter["Category.Sub subcategory"] = bson.M{"$regex": subSubcategory, "$options": "i"}
+    }
+    log.Printf("[DEBUG] GetMaterialsByCategory: Using filter: %v", filter)
 
-	var materials []model.Material
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+    var materials []model.Material
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
 
-	cursor, err := db.MaterialCollection.Find(ctx, filter)
-	if err != nil {
-		log.Printf("[ERROR] GetMaterialsByCategory: Database error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		return
-	}
-	defer cursor.Close(ctx)
+    cursor, err := db.MaterialCollection.Find(ctx, filter)
+    if err != nil {
+        log.Printf("[ERROR] GetMaterialsByCategory: Database error: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+        return
+    }
+    defer cursor.Close(ctx)
 
-	for cursor.Next(ctx) {
-		var material model.Material
-		if err := cursor.Decode(&material); err != nil {
-			log.Printf("[WARN] GetMaterialsByCategory: Failed to decode material: %v", err)
-			continue // Skip problematic entries
-		}
-		materials = append(materials, material)
-	}
+    for cursor.Next(ctx) {
+        var material model.Material
+        if err := cursor.Decode(&material); err != nil {
+            log.Printf("[WARN] GetMaterialsByCategory: Failed to decode material: %v", err)
+            continue // Skip problematic entries
+        }
+        materials = append(materials, material)
+    }
 
-	if len(materials) == 0 {
-		log.Println("[INFO] GetMaterialsByCategory: No materials found for filter")
-		c.JSON(http.StatusNotFound, gin.H{"error": "No materials found"})
-		return
-	}
+    if len(materials) == 0 {
+        log.Println("[INFO] GetMaterialsByCategory: No materials found for filter")
+        c.JSON(http.StatusNotFound, gin.H{"error": "No materials found"})
+        return
+    }
 
-	log.Printf("[INFO] GetMaterialsByCategory: Returning %d materials", len(materials))
-	c.JSON(http.StatusOK, materials)
+    log.Printf("[INFO] GetMaterialsByCategory: Returning %d materials", len(materials))
+    c.JSON(http.StatusOK, materials)
 }
 
 // Create a new material
