@@ -378,7 +378,7 @@ func HandleWebhook(c *gin.Context) {
 			}
 			log.Printf("requestId=%s info=package_set userId=%s package=%s", reqID, req.UserID, req.PackageName)
 
-			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, true, "approved"); err != nil {
+			if err := UpdateProfessionalPaymentRecordApprovedStatus(req.UserID, true, "active"); err != nil {
 				log.Printf("requestId=%s error=approve_status_failed userId=%s approved=true detail=%v", reqID, req.UserID, err)
 				respondError(c, http.StatusInternalServerError, "approve_status_failed",
 					"Could not update approved status", err.Error())
