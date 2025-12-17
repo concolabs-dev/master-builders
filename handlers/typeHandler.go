@@ -154,7 +154,7 @@ func UpdateType(c *gin.Context) {
 		// --- C: Find changes and update related Materials ---
 		// This is the "category change logic"
 		// We find all changes by comparing the old and new category lists.
-		changes := utils.FindCategoryChanges(oldTypeData.Categories, newTypeData.Categories)
+		changes := utils.FindTypeChanges(oldTypeData, newTypeData)
 		log.Printf("[DEBUG] changes: %v\n", changes)
 		if len(changes) == 0 {
 			log.Printf("[INFO-TXN] No category name changes detected.")
@@ -167,6 +167,7 @@ func UpdateType(c *gin.Context) {
 		for _, change := range changes {
 			// This filter finds materials matching the OLD category data
 			filter := bson.M{
+				"Type":                     change.Old.Type,
 				"Category.Category":        change.Old.Category,
 				"Category.Subcategory":     change.Old.Subcategory,
 				"Category.Sub subcategory": change.Old.SubSubcategory,
@@ -175,6 +176,7 @@ func UpdateType(c *gin.Context) {
 			// This update $sets the NEW category data
 			materialUpdate := bson.M{
 				"$set": bson.M{
+					"Type":                     change.New.Type,
 					"Category.Category":        change.New.Category,
 					"Category.Subcategory":     change.New.Subcategory,
 					"Category.Sub subcategory": change.New.SubSubcategory,
