@@ -14,6 +14,8 @@ from pydantic import BaseModel
 from agent import chat, GREETING_MESSAGE
 from agent.prompts import GREETING_SUGGESTIONS
 from db import test_connection
+from config import settings
+from google import genai as google_genai
 
 # Configure logging
 logging.basicConfig(
@@ -21,6 +23,33 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def check_api_key_validity():
+    """Check if the Google Gemini API key is valid and has credits."""
+    try:
+        if not settings.GOOGLE_API_KEY:
+            return False, "API key not configured"
+        
+        # Try a simple API call to validate
+        client = google_genai.Client(api_key=settings.GOOGLE_API_KEY)
+        
+        # List models as a simple validation
+        models = client.models.list()
+        
+        if models:
+            return True, "API key valid"
+        else:
+            return False, "No models available"
+            
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "quota" in error_msg or "limit" in error_msg or "429" in str(e):
+            return False, "API quota exceeded"
+        elif "invalid" in error_msg or "unauthorized" in error_msg or "403" in str(e) or "401" in str(e):
+            return False, "Invalid API key"
+        else:
+            return False, f"API error: {str(e)[:50]}"
 
 
 @asynccontextmanager
@@ -85,6 +114,8 @@ class HealthResponse(BaseModel):
     service: str
     version: str
     database: str
+    api_key: str
+    api_status: str
     timestamp: str
 
 
@@ -93,11 +124,20 @@ async def health_check():
     """Health check endpoint."""
     db_status = "connected" if test_connection() else "disconnected"
     
+    # Check API key validity
+    api_valid, api_message = check_api_key_validity()
+    api_key_status = "valid" if api_valid else "invalid"
+    
+    # Determine overall status
+    overall_status = "healthy" if (db_status == "connected" and api_valid) else "degraded"
+    
     return HealthResponse(
-        status="healthy" if db_status == "connected" else "degraded",
+        status=overall_status,
         service="buildmarket-chatbot",
         version="1.0.0",
         database=db_status,
+        api_key=api_key_status,
+        api_status=api_message,
         timestamp=datetime.utcnow().isoformat()
     )
 
