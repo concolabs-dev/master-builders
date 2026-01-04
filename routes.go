@@ -99,6 +99,11 @@ func RegisterRoutes(router *gin.Engine) {
 	// Email routes
 	email.RegisterRoutesEmail(router)
 
+	// Chatbot proxy routes
+	router.POST("/chat", handlers.ProxyChatMessage)
+	router.GET("/chat/greeting", handlers.ProxyChatGreeting)
+	router.GET("/chat/health", handlers.ProxyChatHealth)
+
 	// Health check route
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
